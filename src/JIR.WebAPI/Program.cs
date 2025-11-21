@@ -1,5 +1,6 @@
 using JIR.Application;
 using JIR.Infrastructure;
+using JIR.Infrastructure.Data;
 using JIR.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,7 +26,11 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowBlazor", policy =>
     {
-        policy.WithOrigins("https://localhost:7001", "http://localhost:5001")
+        policy.WithOrigins(
+                "https://localhost:7001", 
+                "http://localhost:5001",
+                "https://jir-blazor.fly.dev",
+                "http://jir-blazor.fly.dev")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -44,12 +49,28 @@ if (app.Environment.IsDevelopment())
     app.UseDeveloperExceptionPage();
     app.UseSwagger();
     app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "JIR API v1"));
+}
+
+// Auto-migrate database and seed data
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     
-    // Auto-migrate database in development
-    using (var scope = app.Services.CreateScope())
+    try
     {
-        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        logger.LogInformation("Applying database migrations...");
         await context.Database.MigrateAsync();
+        logger.LogInformation("Database migrations applied successfully.");
+        
+        logger.LogInformation("Seeding database...");
+        await DatabaseSeeder.SeedAsync(context);
+        logger.LogInformation("Database seeding completed successfully.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "An error occurred while migrating or seeding the database.");
+        throw;
     }
 }
 
