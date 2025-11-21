@@ -1,0 +1,228 @@
+@page "/magasins"
+@using JIR.BlazorApp.Models
+@using JIR.BlazorApp.Services
+@inject MagasinService MagasinService
+@inject ToastService ToastService
+@inject ConfirmDialogService ConfirmDialogService
+@rendermode InteractiveServer
+
+<h3>Gestion des Magasins</h3>
+
+<div class="mb-3">
+    <button class="btn btn-primary" @onclick="ShowCreateForm">
+        <span class="oi oi-plus"></span> Nouveau Magasin
+    </button>
+</div>
+
+@if (showForm)
+{
+    <div class="card mb-3">
+        <div class="card-header">
+            @(isEdit ? "Modifier Magasin" : "Nouveau Magasin")
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label class="form-label">Code <span class="text-danger">*</span></label>
+                <input type="text" class="form-control @(string.IsNullOrWhiteSpace(formCode) && formValidated ? "is-invalid" : "")" 
+                       @bind="formCode" disabled="@isEdit" required />
+                @if (string.IsNullOrWhiteSpace(formCode) && formValidated)
+                {
+                    <div class="invalid-feedback d-block">Le code est requis</div>
+                }
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Nom <span class="text-danger">*</span></label>
+                <input type="text" class="form-control @(string.IsNullOrWhiteSpace(formNom) && formValidated ? "is-invalid" : "")" 
+                       @bind="formNom" required />
+                @if (string.IsNullOrWhiteSpace(formNom) && formValidated)
+                {
+                    <div class="invalid-feedback d-block">Le nom est requis</div>
+                }
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Localisation</label>
+                <input type="text" class="form-control" @bind="formLocalisation" />
+            </div>
+            <button class="btn btn-success" @onclick="SaveMagasin">Enregistrer</button>
+            <button class="btn btn-secondary" @onclick="CancelForm">Annuler</button>
+        </div>
+    </div>
+}
+
+@if (loading)
+{
+    <p><em>Chargement...</em></p>
+}
+else if (magasins != null)
+{
+    <div class="mb-3">
+        <input type="text" class="form-control" placeholder="Rechercher..." @bind="searchTerm" @bind:event="oninput" @onkeyup="SearchMagasins" />
+    </div>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Nom</th>
+                <th>Localisation</th>
+                <th>Responsable</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var magasin in magasins.Magasins)
+            {
+                <tr>
+                    <td>@magasin.Code</td>
+                    <td>@magasin.Nom</td>
+                    <td>@magasin.Localisation</td>
+                    <td>@magasin.ResponsableNom</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning" @onclick="() => EditMagasin(magasin)">Modifier</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteMagasin(magasin.Id)">Supprimer</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <nav>
+        <ul class="pagination">
+            @for (int i = 1; i <= magasins.TotalPages; i++)
+            {
+                var pageNum = i;
+                <li class="page-item @(pageNum == currentPage ? "active" : "")">
+                    <a class="page-link" @onclick="() => LoadMagasins(pageNum)">@pageNum</a>
+                </li>
+            }
+        </ul>
+    </nav>
+}
+
+@code {
+    private MagasinsListResult? magasins;
+    private bool loading = true;
+    private bool showForm = false;
+    private bool isEdit = false;
+    private Guid? editId = null;
+    private int currentPage = 1;
+    private string searchTerm = "";
+
+    // Form fields
+    private string formCode = "";
+    private string formNom = "";
+    private string? formLocalisation = "";
+    private bool formValidated = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMagasins();
+    }
+
+    private async Task LoadMagasins(int page = 1)
+    {
+        loading = true;
+        currentPage = page;
+        magasins = await MagasinService.GetAllAsync(page, 10, string.IsNullOrEmpty(searchTerm) ? null : searchTerm);
+        loading = false;
+    }
+
+    private async Task SearchMagasins()
+    {
+        await LoadMagasins(1);
+    }
+
+    private void ShowCreateForm()
+    {
+        isEdit = false;
+        editId = null;
+        formCode = "";
+        formNom = "";
+        formLocalisation = "";
+        formValidated = false;
+        showForm = true;
+    }
+
+    private void EditMagasin(MagasinDto magasin)
+    {
+        isEdit = true;
+        editId = magasin.Id;
+        formCode = magasin.Code;
+        formNom = magasin.Nom;
+        formLocalisation = magasin.Localisation;
+        formValidated = false;
+        showForm = true;
+    }
+
+    private async Task SaveMagasin()
+    {
+        formValidated = true;
+
+        // Validation
+        if (string.IsNullOrWhiteSpace(formCode) || string.IsNullOrWhiteSpace(formNom))
+        {
+            ToastService.ShowWarning("Veuillez remplir tous les champs obligatoires", "Validation");
+            return;
+        }
+
+        try
+        {
+            if (isEdit && editId.HasValue)
+            {
+                await MagasinService.UpdateAsync(editId.Value, new UpdateMagasinRequest
+                {
+                    Code = formCode,
+                    Nom = formNom,
+                    Localisation = formLocalisation
+                });
+                ToastService.ShowSuccess("Magasin modifié avec succès!");
+            }
+            else
+            {
+                await MagasinService.CreateAsync(new CreateMagasinRequest
+                {
+                    Code = formCode,
+                    Nom = formNom,
+                    Localisation = formLocalisation
+                });
+                ToastService.ShowSuccess("Magasin créé avec succès!");
+            }
+
+            showForm = false;
+            formValidated = false;
+            await LoadMagasins(currentPage);
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Erreur lors de l'enregistrement: {ex.Message}");
+        }
+    }
+
+    private void CancelForm()
+    {
+        showForm = false;
+    }
+
+    private async Task DeleteMagasin(Guid id)
+    {
+        var confirmed = await ConfirmDialogService.ShowAsync(
+            "Confirmer la suppression",
+            "Êtes-vous sûr de vouloir supprimer ce magasin ? Cette action est irréversible.",
+            "Supprimer"
+        );
+
+        if (!confirmed)
+            return;
+
+        try
+        {
+            await MagasinService.DeleteAsync(id);
+            ToastService.ShowSuccess("Magasin supprimé avec succès!");
+            await LoadMagasins(currentPage);
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Erreur lors de la suppression: {ex.Message}");
+        }
+    }
+}

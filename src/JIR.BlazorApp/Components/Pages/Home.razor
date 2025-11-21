@@ -1,0 +1,290 @@
+@page "/"
+@using JIR.BlazorApp.Models
+@using JIR.BlazorApp.Services
+@using Microsoft.JSInterop
+@inject MagasinService MagasinService
+@inject ArticleMagasinService ArticleService
+@inject MouvementStockService MouvementService
+@inject ToastService ToastService
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<h3>Tableau de Bord</h3>
+
+@if (loading)
+{
+    <p><em>Chargement...</em></p>
+}
+else
+{
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-white bg-primary">
+                <div class="card-body">
+                    <h5 class="card-title">Magasins</h5>
+                    <h2>@totalMagasins</h2>
+                    <p class="card-text">Magasins actifs</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <h5 class="card-title">Articles</h5>
+                    <h2>@totalArticles</h2>
+                    <p class="card-text">Articles en stock</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-warning">
+                <div class="card-body">
+                    <h5 class="card-title">Alertes Stock</h5>
+                    <h2>@articlesEnRupture</h2>
+                    <p class="card-text">Articles sous seuil</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Répartition des mouvements</h5>
+                </div>
+                <div class="card-body">
+                    <div style="height: 300px;">
+                        <canvas id="pieChartMouvements"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Mouvements sur 7 jours</h5>
+                </div>
+                <div class="card-body">
+                    <div style="height: 300px;">
+                        <canvas id="lineChartMouvements"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (articlesBasStock != null && articlesBasStock.Count > 0)
+    {
+        <div class="card mb-4">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0">⚠ Articles en alerte (stock bas)</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div style="height: 300px;">
+                            <canvas id="barChartArticles"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Code</th>
+                                    <th>Désignation</th>
+                                    <th>Magasin</th>
+                                    <th>Stock Actuel</th>
+                                    <th>Seuil Minimum</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var article in articlesBasStock.Take(10))
+                                {
+                                    <tr>
+                                        <td>@article.CodeArticle</td>
+                                        <td>@article.Designation</td>
+                                        <td>@article.MagasinNom</td>
+                                        <td class="text-danger fw-bold">@article.QuantiteStock.ToString("N2")</td>
+                                        <td>@article.SeuilAlerte.ToString("N2")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Derniers mouvements de stock</h5>
+        </div>
+        <div class="card-body">
+            @if (derniersMouvements != null && derniersMouvements.Count > 0)
+            {
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Article</th>
+                            <th>Quantit�</th>
+                            <th>N� Document</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var mouv in derniersMouvements.Take(10))
+                        {
+                            var badge = mouv.TypeMouvement switch
+                            {
+                                TypeMouvement.Entree => "badge bg-success",
+                                TypeMouvement.Sortie => "badge bg-danger",
+                                TypeMouvement.Ajustement => "badge bg-warning text-dark",
+                                _ => "badge bg-secondary"
+                            };
+
+                            <tr>
+                                <td>@mouv.DateMouvement.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td><span class="@badge">@mouv.TypeMouvement</span></td>
+                                <td>@mouv.ArticleDesignation</td>
+                                <td>@mouv.Quantite.ToString("N2")</td>
+                                <td>@mouv.NumeroDocument</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else
+            {
+                <p class="text-muted">Aucun mouvement r�cent</p>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private bool loading = true;
+    private int totalMagasins = 0;
+    private int totalArticles = 0;
+    private int articlesEnRupture = 0;
+    private List<ArticleMagasinDto> articlesBasStock = new();
+    private List<MouvementStockDto> derniersMouvements = new();
+
+    private bool chartsRendered = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboardData();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!chartsRendered && !loading)
+        {
+            chartsRendered = true;
+            // Attendre que Chart.js soit chargé et le DOM soit prêt
+            await Task.Delay(200);
+            await RenderCharts();
+        }
+    }
+
+    private async Task LoadDashboardData()
+    {
+        loading = true;
+
+        try
+        {
+            // Charger les magasins
+            var magasins = await MagasinService.GetAllAsync(1, 100);
+            totalMagasins = magasins?.TotalCount ?? 0;
+
+            // Charger les articles
+            var articles = await ArticleService.GetAllAsync(1, 100);
+            totalArticles = articles?.TotalCount ?? 0;
+
+            // Articles en rupture (stock <= seuil)
+            if (articles?.Articles != null)
+            {
+                articlesBasStock = articles.Articles
+                    .Where(a => a.QuantiteStock <= a.SeuilAlerte)
+                    .OrderBy(a => a.QuantiteStock)
+                    .ToList();
+                articlesEnRupture = articlesBasStock.Count;
+            }
+
+            // Derniers mouvements (récupérer plus pour les stats)
+            var mouvements = await MouvementService.GetAllAsync(1, 100);
+            if (mouvements?.Items != null)
+            {
+                derniersMouvements = mouvements.Items
+                    .OrderByDescending(m => m.DateMouvement)
+                    .ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading dashboard: {ex.Message}");
+        }
+
+        loading = false;
+        StateHasChanged(); // Force le re-rendu pour déclencher OnAfterRenderAsync
+    }
+
+    private async Task RenderCharts()
+    {
+        try
+        {
+            // Graphique en camembert - Répartition par type de mouvement
+            var mouvementsByType = derniersMouvements
+                .GroupBy(m => m.TypeMouvement)
+                .Select(g => new { Type = g.Key.ToString(), Count = g.Count() })
+                .ToList();
+            
+            if (mouvementsByType.Any())
+            {
+                await JSRuntime.InvokeVoidAsync("createPieChart",
+                    "pieChartMouvements",
+                    mouvementsByType.Select(m => m.Type).ToArray(),
+                    mouvementsByType.Select(m => m.Count).ToArray(),
+                    "Répartition des mouvements par type");
+            }
+
+            // Graphique linéaire - Mouvements sur 7 derniers jours
+            var last7Days = Enumerable.Range(0, 7)
+                .Select(i => DateTime.Now.Date.AddDays(-6 + i))
+                .ToList();
+
+            var mouvementsByDay = last7Days
+                .Select(date => new
+                {
+                    Date = date.ToString("dd/MM"),
+                    Count = derniersMouvements.Count(m => m.DateMouvement.Date == date)
+                })
+                .ToList();
+
+            await JSRuntime.InvokeVoidAsync("createLineChart",
+                "lineChartMouvements",
+                mouvementsByDay.Select(m => m.Date).ToArray(),
+                mouvementsByDay.Select(m => m.Count).ToArray(),
+                "Nombre de mouvements par jour");
+
+            // Graphique en barres - Articles sous seuil
+            if (articlesBasStock.Any())
+            {
+                var topArticles = articlesBasStock.Take(10).ToList();
+                await JSRuntime.InvokeVoidAsync("createBarChart",
+                    "barChartArticles",
+                    topArticles.Select(a => a.CodeArticle).ToArray(),
+                    topArticles.Select(a => (int)a.QuantiteStock).ToArray(),
+                    "Stock actuel des articles en alerte");
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log l'erreur mais ne bloque pas l'affichage de la page
+            Console.WriteLine($"Error rendering charts: {ex.Message}");
+        }
+    }
+}

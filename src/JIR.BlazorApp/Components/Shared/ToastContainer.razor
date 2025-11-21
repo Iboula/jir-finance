@@ -1,0 +1,76 @@
+@using JIR.BlazorApp.Services
+@inject ToastService ToastService
+@implements IDisposable
+@rendermode InteractiveServer
+
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 11000;">
+    @if (showToast)
+    {
+        <div class="toast show @GetToastClass()" role="alert">
+            <div class="toast-header">
+                <strong class="me-auto">@toastTitle</strong>
+                <button type="button" class="btn-close" @onclick="HideToast"></button>
+            </div>
+            <div class="toast-body">
+                @toastMessage
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool showToast;
+    private string toastTitle = "";
+    private string toastMessage = "";
+    private ToastType toastType = ToastType.Info;
+    private System.Threading.Timer? timer;
+
+    protected override void OnInitialized()
+    {
+        ToastService.OnShow += ShowToast;
+    }
+
+    private void ShowToast(string title, string message, ToastType type)
+    {
+        toastTitle = title;
+        toastMessage = message;
+        toastType = type;
+        showToast = true;
+        StateHasChanged();
+
+        // Auto-hide after 5 seconds
+        timer?.Dispose();
+        timer = new System.Threading.Timer(_ =>
+        {
+            InvokeAsync(() =>
+            {
+                HideToast();
+            });
+        }, null, 5000, Timeout.Infinite);
+    }
+
+    private void HideToast()
+    {
+        showToast = false;
+        timer?.Dispose();
+        StateHasChanged();
+    }
+
+    private string GetToastClass()
+    {
+        return toastType switch
+        {
+            ToastType.Success => "bg-success text-white",
+            ToastType.Error => "bg-danger text-white",
+            ToastType.Warning => "bg-warning",
+            ToastType.Info => "bg-info text-white",
+            _ => ""
+        };
+    }
+
+    public void Dispose()
+    {
+        ToastService.OnShow -= ShowToast;
+        timer?.Dispose();
+    }
+}

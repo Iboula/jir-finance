@@ -1,0 +1,6 @@
+@JIR.WebAPI_HostAddress = http://localhost:5263
+
+GET {{JIR.WebAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

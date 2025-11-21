@@ -1,0 +1,68 @@
+@using JIR.BlazorApp.Services
+@inject ConfirmDialogService ConfirmDialogService
+@implements IDisposable
+@rendermode InteractiveServer
+
+@if (isVisible)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@title</h5>
+                    <button type="button" class="btn-close" @onclick="Cancel"></button>
+                </div>
+                <div class="modal-body">
+                    <p>@message</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="Cancel">Annuler</button>
+                    <button type="button" class="btn btn-danger" @onclick="Confirm">@confirmButtonText</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool isVisible = false;
+    private string title = "";
+    private string message = "";
+    private string confirmButtonText = "";
+    private TaskCompletionSource<bool>? tcs;
+
+    protected override void OnInitialized()
+    {
+        ConfirmDialogService.OnShow += ShowAsync;
+    }
+
+    private async Task<bool> ShowAsync(string titleParam, string messageParam, string confirmButtonTextParam)
+    {
+        title = titleParam;
+        message = messageParam;
+        confirmButtonText = confirmButtonTextParam;
+        isVisible = true;
+        tcs = new TaskCompletionSource<bool>();
+        await InvokeAsync(StateHasChanged);
+        return await tcs.Task;
+    }
+
+    private void Confirm()
+    {
+        isVisible = false;
+        tcs?.SetResult(true);
+        StateHasChanged();
+    }
+
+    private void Cancel()
+    {
+        isVisible = false;
+        tcs?.SetResult(false);
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        ConfirmDialogService.OnShow -= ShowAsync;
+    }
+}

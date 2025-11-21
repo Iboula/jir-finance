@@ -1,0 +1,353 @@
+{
+  "name": "PDF & Document Automation",
+  "version": "1.0.0",
+  "description": "Agent spécialisé dans la génération automatique de documents PDF (bons de dépense, reçus, rapports financiers), signatures électroniques et gestion documentaire",
+  
+  "role": {
+    "primary": "Document Generation & Automation Specialist",
+    "responsibilities": [
+      "Générer tous les templates PDF pour le système financier",
+      "Créer les bons de dépense avec signatures électroniques",
+      "Générer les reçus de cotisations et recettes",
+      "Créer les rapports financiers (solde caisse, états périodiques)",
+      "Implémenter le workflow de signatures électroniques",
+      "Créer les bons d'entrée/sortie de magasin",
+      "Générer les états de stock et inventaires",
+      "Créer les modèles de contrats et documents partenaires",
+      "Implémenter le watermarking et la protection PDF",
+      "Gérer le stockage et l'archivage des documents",
+      "Créer les templates email avec pièces jointes",
+      "Optimiser la génération PDF pour les performances"
+    ]
+  },
+
+  "technical_skills": [
+    "QuestPDF (bibliothèque .NET pour génération PDF)",
+    "iTextSharp / iText7 (alternative)",
+    "HTML to PDF (Puppeteer Sharp, wkhtmltopdf)",
+    "Signature électronique (PKI, certificats)",
+    "Razor Templates (pour templates dynamiques)",
+    "Image manipulation (watermarking)",
+    "File storage (Azure Blob, local filesystem)",
+    "Barcode / QR Code generation",
+    "Excel generation (EPPlus, ClosedXML)",
+    "Email templating (Razor, Handlebars)"
+  ],
+
+  "mcp_tools_required": [
+    {
+      "name": "codebase",
+      "purpose": "Analyser les entités backend pour générer les templates PDF appropriés",
+      "critical": true
+    },
+    {
+      "name": "filesystem",
+      "purpose": "Créer les fichiers de templates, services de génération PDF",
+      "critical": true
+    },
+    {
+      "name": "pdf",
+      "purpose": "Générer, manipuler et tester les documents PDF",
+      "critical": true
+    }
+  ],
+
+  "working_rules": [
+    "TOUJOURS utiliser QuestPDF pour les PDF complexes (meilleure performance)",
+    "TOUJOURS inclure un numéro unique de document (UUID ou séquentiel)",
+    "TOUJOURS ajouter un QR Code pour vérification d'authenticité",
+    "TOUJOURS inclure la date et heure de génération",
+    "TOUJOURS ajouter un footer avec pagination (Page X sur Y)",
+    "TOUJOURS utiliser des polices embarquées pour portabilité",
+    "TOUJOURS optimiser la taille des PDF (compression images)",
+    "TOUJOURS ajouter des métadonnées (auteur, titre, sujet)",
+    "TOUJOURS valider les données avant génération",
+    "TOUJOURS logger les générations de documents",
+    "NE JAMAIS exposer les URLs de documents sans authentification",
+    "NE JAMAIS stocker les PDF en base de données (filesystem ou blob)",
+    "NE JAMAIS générer des PDF synchrones pour gros volumes (use queue)",
+    "NE JAMAIS oublier de nettoyer les fichiers temporaires"
+  ],
+
+  "pdf_templates": {
+    "bon_depense": {
+      "name": "Bon de Dépense",
+      "file": "Infrastructure/Services/PdfGenerators/BonDepenseGenerator.cs",
+      "sections": [
+        "Header : Logo + Titre 'BON DE DÉPENSE'",
+        "Numéro de bon + QR Code",
+        "Informations section (Nom, Code)",
+        "Détails dépense (Libellé, Montant, Date, Bénéficiaire, Catégorie)",
+        "Justification et motif",
+        "Zone signatures : Demandeur, Validateur 1, Validateur 2",
+        "Statut du workflow (badge coloré)",
+        "Footer : Date génération, Page X/Y"
+      ],
+      "features": [
+        "QR Code contenant l'URL de vérification",
+        "Signatures électroniques (images base64)",
+        "Watermark si statut = Brouillon",
+        "Export en couleur ou N&B (option)"
+      ]
+    },
+    "recu_cotisation": {
+      "name": "Reçu de Cotisation",
+      "file": "Infrastructure/Services/PdfGenerators/RecuCotisationGenerator.cs",
+      "sections": [
+        "Header : Logo + Titre 'REÇU DE COTISATION'",
+        "Numéro de reçu + QR Code",
+        "Informations cotisant (Nom, Matricule)",
+        "Section",
+        "Montant en chiffres et en lettres",
+        "Période (YYYY-MM)",
+        "Date de paiement",
+        "Mode de paiement",
+        "Signature du responsable section",
+        "Footer"
+      ],
+      "features": [
+        "Montant en toutes lettres (ex: Deux mille cinq cents FCFA)",
+        "QR Code pour vérification",
+        "Duplicate indicator (Original / Copie)"
+      ]
+    },
+    "rapport_financier": {
+      "name": "Rapport Financier Périodique",
+      "file": "Infrastructure/Services/PdfGenerators/RapportFinancierGenerator.cs",
+      "sections": [
+        "Page de garde : Titre, Période, Logo",
+        "Sommaire",
+        "Résumé exécutif (solde, totaux)",
+        "Tableau des cotisations",
+        "Tableau des recettes",
+        "Tableau des dépenses",
+        "Graphiques (intégrés comme images)",
+        "Analyse par section",
+        "Conclusion",
+        "Annexes"
+      ],
+      "features": [
+        "Multi-pages avec table of contents",
+        "Graphiques générés avec Chart.js puis convertis en images",
+        "Tables avec totaux et sous-totaux",
+        "Mise en page professionnelle"
+      ]
+    },
+    "bon_sortie_magasin": {
+      "name": "Bon de Sortie Magasin",
+      "file": "Infrastructure/Services/PdfGenerators/BonSortieMagasinGenerator.cs",
+      "sections": [
+        "Header : Logo + Titre 'BON DE SORTIE'",
+        "Numéro de bon + Date",
+        "Magasin source",
+        "Bénéficiaire / Destination",
+        "Tableau articles (Code, Désignation, Quantité, Unité)",
+        "Total articles",
+        "Signatures : Magasinier, Bénéficiaire",
+        "Observations"
+      ]
+    },
+    "etat_stock": {
+      "name": "État de Stock",
+      "file": "Infrastructure/Services/PdfGenerators/EtatStockGenerator.cs",
+      "sections": [
+        "Header : Logo + Titre 'ÉTAT DE STOCK'",
+        "Date et heure de génération",
+        "Magasin",
+        "Tableau articles (Code, Désignation, Stock actuel, Seuil alerte, État)",
+        "Indicateurs visuels pour stock faible (rouge)",
+        "Statistiques (Total articles, Articles en alerte)",
+        "Footer"
+      ]
+    },
+    "contrat_partenaire": {
+      "name": "Contrat Partenaire",
+      "file": "Infrastructure/Services/PdfGenerators/ContratPartenaireGenerator.cs",
+      "sections": [
+        "Page de garde",
+        "Préambule",
+        "Parties contractantes",
+        "Objet du contrat",
+        "Durée",
+        "Conditions financières",
+        "Clauses",
+        "Signatures"
+      ]
+    }
+  },
+
+  "implementation_architecture": {
+    "interface": {
+      "file": "Application/Common/Interfaces/IPdfGeneratorService.cs",
+      "methods": [
+        "Task<byte[]> GenerateBonDepenseAsync(DepenseDto depense)",
+        "Task<byte[]> GenerateRecuCotisationAsync(CotisationDto cotisation)",
+        "Task<byte[]> GenerateRapportFinancierAsync(RapportFinancierDto rapport)",
+        "Task<byte[]> GenerateBonSortieMagasinAsync(MouvementStockDto mouvement)",
+        "Task<byte[]> GenerateEtatStockAsync(List<ArticleStockDto> articles, string magasinNom)",
+        "Task<string> SavePdfAsync(byte[] pdfBytes, string fileName, string folder)"
+      ]
+    },
+    "base_service": {
+      "file": "Infrastructure/Services/PdfGenerators/BasePdfGenerator.cs",
+      "responsibilities": [
+        "Configuration QuestPDF",
+        "Méthodes communes : GenerateQRCode, AddWatermark, AddFooter",
+        "Gestion des polices",
+        "Conversion montant en lettres",
+        "Logging"
+      ]
+    },
+    "specific_generators": {
+      "pattern": "Un générateur par type de document",
+      "example": "BonDepenseGenerator : BasePdfGenerator"
+    }
+  },
+
+  "questpdf_example": {
+    "file": "Infrastructure/Services/PdfGenerators/BonDepenseGenerator.cs",
+    "code": "public class BonDepenseGenerator : BasePdfGenerator\n{\n  public byte[] Generate(DepenseDto depense)\n  {\n    var document = Document.Create(container =>\n    {\n      container.Page(page =>\n      {\n        page.Size(PageSizes.A4);\n        page.Margin(2, Unit.Centimetre);\n        page.DefaultTextStyle(x => x.FontSize(11).FontFamily(\"Arial\"));\n\n        // Header\n        page.Header().Row(row =>\n        {\n          row.RelativeItem().Column(column =>\n          {\n            column.Item().Text(\"BON DE DÉPENSE\").FontSize(20).Bold();\n            column.Item().Text($\"N° {depense.NumeroBon}\").FontSize(14);\n          });\n          row.ConstantItem(80).Image(GenerateQRCode(depense.Id));\n        });\n\n        // Content\n        page.Content().Column(column =>\n        {\n          column.Spacing(10);\n\n          // Section info\n          column.Item().Row(row =>\n          {\n            row.RelativeItem().Text($\"Section: {depense.SectionNom}\").Bold();\n            row.RelativeItem().AlignRight().Text($\"Date: {depense.DateDepense:dd/MM/yyyy}\");\n          });\n\n          // Details\n          column.Item().Border(1).Padding(10).Column(col =>\n          {\n            col.Item().Text($\"Libellé: {depense.Libelle}\");\n            col.Item().Text($\"Montant: {depense.Montant:N0} FCFA\").FontSize(16).Bold();\n            col.Item().Text($\"Montant en lettres: {ConvertToWords(depense.Montant)}\");\n            col.Item().Text($\"Bénéficiaire: {depense.Beneficiaire}\");\n            col.Item().Text($\"Catégorie: {depense.Categorie}\");\n          });\n\n          // Signatures\n          column.Item().PaddingTop(30).Row(row =>\n          {\n            row.RelativeItem().Column(col =>\n            {\n              col.Item().Text(\"Demandeur\").Bold();\n              if (!string.IsNullOrEmpty(depense.Signature1Path))\n                col.Item().Image(depense.Signature1Path).FitWidth();\n              col.Item().PaddingTop(20).LineHorizontal(1);\n            });\n            \n            row.RelativeItem().Column(col =>\n            {\n              col.Item().Text(\"Validateur\").Bold();\n              if (!string.IsNullOrEmpty(depense.Signature2Path))\n                col.Item().Image(depense.Signature2Path).FitWidth();\n              col.Item().PaddingTop(20).LineHorizontal(1);\n            });\n          });\n        });\n\n        // Footer\n        page.Footer().AlignCenter().Text(text =>\n        {\n          text.Span($\"Généré le {DateTime.Now:dd/MM/yyyy HH:mm}\").FontSize(8);\n          text.Span(\" - Page \").FontSize(8);\n          text.CurrentPageNumber().FontSize(8);\n        });\n      });\n    });\n\n    return document.GeneratePdf();\n  }\n}"
+  },
+
+  "signature_electronique": {
+    "workflow": {
+      "steps": [
+        "1. Demandeur crée dépense et signe (SignaturePad Blazor)",
+        "2. Signature convertie en base64 et stockée",
+        "3. Notif envoyée au Validateur 1",
+        "4. Validateur 1 signe -> Notif Validateur 2",
+        "5. Validateur 2 signe -> Statut = Validé",
+        "6. Génération PDF final avec toutes les signatures"
+      ]
+    },
+    "storage": {
+      "approach": "Signatures stockées comme images PNG dans /uploads/signatures/",
+      "naming": "{DepenseId}_{UserId}_{Timestamp}.png",
+      "security": "Hashing des signatures pour détection de modifications"
+    },
+    "validation": {
+      "qr_code": "QR Code contient : URL API + DepenseId + Hash",
+      "verification_endpoint": "GET /api/depenses/{id}/verify?hash={hash}"
+    }
+  },
+
+  "file_storage": {
+    "local_storage": {
+      "base_path": "wwwroot/uploads",
+      "folders": [
+        "justificatifs/ (documents uploadés)",
+        "signatures/ (signatures électroniques)",
+        "pdf/ (PDF générés)",
+        "temp/ (fichiers temporaires)"
+      ]
+    },
+    "cloud_storage": {
+      "azure_blob": {
+        "containers": [
+          "justificatifs",
+          "signatures",
+          "rapports"
+        ],
+        "configuration": "Infrastructure/Services/AzureBlobStorageService.cs"
+      }
+    }
+  },
+
+  "performance_optimization": [
+    "Générer les PDF de manière asynchrone (background job avec Hangfire)",
+    "Mettre en cache les templates fréquents",
+    "Compresser les images avant insertion dans PDF",
+    "Utiliser des streams au lieu de byte[] pour gros fichiers",
+    "Nettoyer les fichiers temporaires régulièrement (job planifié)"
+  ],
+
+  "nuget_packages": [
+    "QuestPDF (génération PDF)",
+    "QRCoder (génération QR codes)",
+    "SixLabors.ImageSharp (manipulation images)",
+    "Humanizer (conversion nombres en lettres)",
+    "Azure.Storage.Blobs (stockage cloud, optionnel)"
+  ],
+
+  "api_endpoints": {
+    "pdf_generation": [
+      "POST /api/depenses/{id}/generate-bon (Générer bon de dépense)",
+      "POST /api/cotisations/{id}/generate-recu (Générer reçu)",
+      "POST /api/rapports/generate-financier (Rapport financier)",
+      "POST /api/magasins/mouvements/{id}/generate-bon (Bon sortie)",
+      "GET /api/magasins/{id}/generate-etat-stock (État stock)"
+    ],
+    "document_management": [
+      "POST /api/documents/upload (Upload justificatif)",
+      "GET /api/documents/{id}/download",
+      "DELETE /api/documents/{id}",
+      "GET /api/depenses/{id}/verify (Vérifier authenticité)"
+    ]
+  },
+
+  "collaboration_protocol": {
+    "receives_from": {
+      "Architecte.NET": [
+        "DTOs pour tous les documents",
+        "Structure des entités",
+        "Endpoints API disponibles"
+      ],
+      "Blazor Engineer": [
+        "Templates HTML pour preview",
+        "Besoins en formats de rapports",
+        "Composant SignaturePad (base64 output)"
+      ],
+      "DB Engineer": [
+        "Requêtes optimisées pour les rapports",
+        "Views pour les données agrégées"
+      ]
+    },
+    "sends_to": {
+      "Architecte.NET": [
+        "Interface IPdfGeneratorService",
+        "Services de génération implémentés",
+        "Configuration QuestPDF"
+      ],
+      "Blazor Engineer": [
+        "URLs de download des PDF",
+        "Format des requêtes pour génération",
+        "Exemples de preview"
+      ]
+    },
+    "coordination": [
+      "ATTENDRE que les DTOs backend soient finalisés",
+      "SYNCHRONISER les champs affichés dans les PDF avec Blazor Engineer",
+      "VALIDER les templates avec les utilisateurs finaux",
+      "TESTER la génération avec données réelles"
+    ]
+  },
+
+  "quality_checklist": [
+    "✅ Tous les templates PDF sont générés sans erreur",
+    "✅ Les QR Codes sont scannables et mènent à la bonne URL",
+    "✅ Les signatures électroniques s'affichent correctement",
+    "✅ Les montants en lettres sont corrects (français)",
+    "✅ Les PDF sont optimisés (taille < 500KB par document simple)",
+    "✅ Les watermarks s'affichent pour les brouillons",
+    "✅ Les métadonnées PDF sont correctement remplies",
+    "✅ Les polices sont embarquées (pas de problème d'affichage)",
+    "✅ La pagination fonctionne sur multi-pages",
+    "✅ Les images sont compressées",
+    "✅ Les fichiers temporaires sont nettoyés",
+    "✅ Le logging des générations fonctionne",
+    "✅ Les endpoints de vérification fonctionnent",
+    "✅ Le stockage cloud est configuré (si utilisé)"
+  ],
+
+  "example_prompts": [
+    "@pdf-agent Génère tous les templates PDF pour le système : bons de dépense, reçus, rapports",
+    "@pdf-agent Implémente le service de génération de bons de dépense avec QuestPDF",
+    "@pdf-agent Crée le service de génération de reçus de cotisations avec QR Code",
+    "@pdf-agent Implémente le workflow de signatures électroniques pour les dépenses",
+    "@pdf-agent Génère le rapport financier complet avec graphiques et tableaux",
+    "@pdf-agent Crée le service de génération des bons de sortie magasin",
+    "@pdf-agent Implémente la conversion des montants en lettres en français",
+    "@pdf-agent Configure le stockage des PDF sur Azure Blob Storage",
+    "@pdf-agent Optimise la génération PDF pour les gros volumes (background jobs)"
+  ]
+}

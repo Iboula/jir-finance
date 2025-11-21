@@ -1,0 +1,210 @@
+@page "/magasins"
+@using JIR.MauiApp.Models
+@using JIR.MauiApp.Services
+@inject MagasinService MagasinService
+
+<h3>Gestion des Magasins</h3>
+
+<div class="mb-3">
+    <button class="btn btn-primary" @onclick="ShowCreateForm">
+        <span class="oi oi-plus"></span> Nouveau Magasin
+    </button>
+</div>
+
+@if (showForm)
+{
+    <div class="card mb-3">
+        <div class="card-header">
+            @(isEdit ? "Modifier Magasin" : "Nouveau Magasin")
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label class="form-label">Code</label>
+                <input type="text" class="form-control" @bind="formCode" disabled="@isEdit" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Nom</label>
+                <input type="text" class="form-control" @bind="formNom" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Adresse</label>
+                <input type="text" class="form-control" @bind="formAdresse" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Téléphone</label>
+                <input type="text" class="form-control" @bind="formTelephone" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Email</label>
+                <input type="email" class="form-control" @bind="formEmail" />
+            </div>
+            <button class="btn btn-success" @onclick="SaveMagasin">Enregistrer</button>
+            <button class="btn btn-secondary" @onclick="CancelForm">Annuler</button>
+        </div>
+    </div>
+}
+
+@if (loading)
+{
+    <p><em>Chargement...</em></p>
+}
+else if (magasins != null)
+{
+    <div class="mb-3">
+        <input type="text" class="form-control" placeholder="Rechercher..." @bind="searchTerm" @bind:event="oninput" @onkeyup="SearchMagasins" />
+    </div>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Nom</th>
+                <th>Adresse</th>
+                <th>Téléphone</th>
+                <th>Email</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var magasin in magasins.Magasins)
+            {
+                <tr>
+                    <td>@magasin.Code</td>
+                    <td>@magasin.Nom</td>
+                    <td>@magasin.Adresse</td>
+                    <td>@magasin.Telephone</td>
+                    <td>@magasin.Email</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning" @onclick="() => EditMagasin(magasin)">Modifier</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteMagasin(magasin.Id)">Supprimer</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <nav>
+        <ul class="pagination">
+            @for (int i = 1; i <= magasins.TotalPages; i++)
+            {
+                var pageNum = i;
+                <li class="page-item @(pageNum == currentPage ? "active" : "")">
+                    <a class="page-link" @onclick="() => LoadMagasins(pageNum)">@pageNum</a>
+                </li>
+            }
+        </ul>
+    </nav>
+}
+
+@code {
+    private MagasinsListResult? magasins;
+    private bool loading = true;
+    private bool showForm = false;
+    private bool isEdit = false;
+    private Guid? editId = null;
+    private int currentPage = 1;
+    private string searchTerm = "";
+
+    // Form fields
+    private string formCode = "";
+    private string formNom = "";
+    private string? formAdresse = "";
+    private string? formTelephone = "";
+    private string? formEmail = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMagasins();
+    }
+
+    private async Task LoadMagasins(int page = 1)
+    {
+        loading = true;
+        currentPage = page;
+        magasins = await MagasinService.GetAllAsync(page, 10, string.IsNullOrEmpty(searchTerm) ? null : searchTerm);
+        loading = false;
+    }
+
+    private async Task SearchMagasins()
+    {
+        await LoadMagasins(1);
+    }
+
+    private void ShowCreateForm()
+    {
+        isEdit = false;
+        editId = null;
+        formCode = "";
+        formNom = "";
+        formAdresse = "";
+        formTelephone = "";
+        formEmail = "";
+        showForm = true;
+    }
+
+    private void EditMagasin(MagasinDto magasin)
+    {
+        isEdit = true;
+        editId = magasin.Id;
+        formCode = magasin.Code;
+        formNom = magasin.Nom;
+        formAdresse = magasin.Adresse;
+        formTelephone = magasin.Telephone;
+        formEmail = magasin.Email;
+        showForm = true;
+    }
+
+    private async Task SaveMagasin()
+    {
+        try
+        {
+            if (isEdit && editId.HasValue)
+            {
+                await MagasinService.UpdateAsync(editId.Value, new UpdateMagasinRequest
+                {
+                    Nom = formNom,
+                    Adresse = formAdresse,
+                    Telephone = formTelephone,
+                    Email = formEmail
+                });
+            }
+            else
+            {
+                await MagasinService.CreateAsync(new CreateMagasinRequest
+                {
+                    Code = formCode,
+                    Nom = formNom,
+                    Adresse = formAdresse,
+                    Telephone = formTelephone,
+                    Email = formEmail
+                });
+            }
+
+            showForm = false;
+            await LoadMagasins(currentPage);
+        }
+        catch (Exception ex)
+        {
+            // TODO: Show error message
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+    }
+
+    private void CancelForm()
+    {
+        showForm = false;
+    }
+
+    private async Task DeleteMagasin(Guid id)
+    {
+        try
+        {
+            await MagasinService.DeleteAsync(id);
+            await LoadMagasins(currentPage);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+    }
+}

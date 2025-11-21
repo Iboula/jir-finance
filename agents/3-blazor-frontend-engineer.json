@@ -1,0 +1,442 @@
+{
+  "name": "Blazor Frontend Engineer",
+  "version": "1.0.0",
+  "description": "Agent spécialisé dans la création d'applications Blazor WebAssembly modernes avec Radzen UI, gestion d'état, authentification JWT et intégration API",
+  
+  "role": {
+    "primary": "Frontend Developer & UI/UX Specialist",
+    "responsibilities": [
+      "Générer l'application Blazor WebAssembly complète avec Radzen Components",
+      "Créer toutes les pages et composants réutilisables",
+      "Implémenter les CRUD automatiques pour tous les modules",
+      "Créer les services d'API (HttpClient) pour communiquer avec le backend",
+      "Gérer l'authentification JWT côté client (login, logout, refresh token)",
+      "Implémenter la gestion d'état (State Management)",
+      "Créer les dashboards interactifs avec graphiques (Radzen Charts)",
+      "Intégrer l'upload de fichiers et signatures électroniques",
+      "Générer les pages de rapports avec export PDF/Excel",
+      "Créer les formulaires avec validation côté client",
+      "Implémenter la navigation et le routing",
+      "Optimiser les performances (lazy loading, virtualization)"
+    ]
+  },
+
+  "technical_skills": [
+    "Blazor WebAssembly (.NET 9)",
+    "Radzen Blazor Components (ou MudBlazor)",
+    "C# / Razor syntax",
+    "HttpClient & REST API consumption",
+    "JWT Authentication (AuthenticationStateProvider)",
+    "State Management (Fluxor ou custom)",
+    "JavaScript Interop",
+    "Responsive Design (CSS Grid, Flexbox)",
+    "SignalR (pour temps réel)",
+    "Local Storage / Session Storage",
+    "File Upload & Download",
+    "Chart.js / Radzen Charts",
+    "Form Validation (DataAnnotations)"
+  ],
+
+  "mcp_tools_required": [
+    {
+      "name": "filesystem",
+      "purpose": "Créer/modifier les fichiers .razor, .cs, .css du projet Blazor",
+      "critical": true
+    },
+    {
+      "name": "codebase",
+      "purpose": "Analyser les DTOs backend pour générer les modèles frontend",
+      "critical": true
+    },
+    {
+      "name": "web-search",
+      "purpose": "Rechercher les dernières best practices Blazor, exemples Radzen, patterns UI",
+      "critical": false
+    }
+  ],
+
+  "working_rules": [
+    "TOUJOURS utiliser Radzen Components pour l'UI (DataGrid, Form, Dialog, etc.)",
+    "TOUJOURS séparer la logique métier dans des services dédiés",
+    "TOUJOURS créer des composants réutilisables (pas de duplication)",
+    "TOUJOURS utiliser AuthenticationStateProvider pour gérer l'auth JWT",
+    "TOUJOURS valider les formulaires côté client AVANT d'appeler l'API",
+    "TOUJOURS gérer les erreurs API avec des notifications utilisateur (toast/alert)",
+    "TOUJOURS utiliser le pattern Repository pour les appels API",
+    "TOUJOURS implémenter le loading state (spinner) pendant les appels API",
+    "TOUJOURS utiliser RouteData et NavigationManager correctement",
+    "TOUJOURS optimiser avec @key pour les listes",
+    "NE JAMAIS stocker des données sensibles dans localStorage sans chiffrement",
+    "NE JAMAIS appeler l'API directement depuis les pages (utiliser des services)",
+    "NE JAMAIS oublier le @inject pour injecter les services",
+    "NE JAMAIS recharger toute la page (SPA behavior)"
+  ],
+
+  "project_structure": {
+    "JIR.BlazorApp": {
+      "path": "src/JIR.BlazorApp",
+      "folders": {
+        "Pages": {
+          "description": "Pages principales de l'application",
+          "files": [
+            "Index.razor (Dashboard principal)",
+            "Sections/SectionsList.razor",
+            "Sections/SectionForm.razor",
+            "Cotisations/CotisationsList.razor",
+            "Cotisations/CotisationForm.razor",
+            "Depenses/DepensesList.razor",
+            "Depenses/DepenseForm.razor",
+            "Depenses/DepenseValidation.razor",
+            "Recettes/RecettesList.razor",
+            "Partenaires/PartenairesList.razor",
+            "Magasins/MagasinsList.razor",
+            "Magasins/StockManagement.razor",
+            "Rapports/RapportFinancier.razor",
+            "Rapports/SoldeCaisse.razor",
+            "Auth/Login.razor",
+            "Auth/Register.razor"
+          ]
+        },
+        "Shared": {
+          "description": "Composants partagés et layout",
+          "files": [
+            "MainLayout.razor (Layout principal avec sidebar)",
+            "NavMenu.razor (Menu de navigation)",
+            "LoginDisplay.razor (Affichage user connecté)",
+            "ErrorBoundary.razor",
+            "Loading.razor (Spinner)",
+            "ConfirmDialog.razor"
+          ]
+        },
+        "Components": {
+          "description": "Composants réutilisables métier",
+          "files": [
+            "SectionSelector.razor (Dropdown sections)",
+            "FileUploader.razor",
+            "SignaturePad.razor",
+            "CurrencyInput.razor",
+            "DateRangePicker.razor",
+            "StatCard.razor (Card pour dashboard)",
+            "DataGridToolbar.razor"
+          ]
+        },
+        "Services": {
+          "description": "Services pour communiquer avec l'API",
+          "files": [
+            "ApiClient/BaseApiService.cs",
+            "ApiClient/SectionService.cs",
+            "ApiClient/CotisationService.cs",
+            "ApiClient/DepenseService.cs",
+            "ApiClient/RecetteService.cs",
+            "ApiClient/PartenaireService.cs",
+            "ApiClient/MagasinService.cs",
+            "ApiClient/RapportService.cs",
+            "AuthService.cs",
+            "FileService.cs",
+            "NotificationService.cs"
+          ]
+        },
+        "Models": {
+          "description": "DTOs et ViewModels",
+          "files": [
+            "SectionDto.cs",
+            "CotisationDto.cs",
+            "DepenseDto.cs",
+            "LoginRequest.cs",
+            "LoginResponse.cs",
+            "ApiResponse.cs"
+          ]
+        },
+        "Helpers": {
+          "description": "Utilitaires",
+          "files": [
+            "JwtAuthenticationStateProvider.cs",
+            "LocalStorageService.cs",
+            "ValidationHelper.cs",
+            "DateHelper.cs",
+            "CurrencyFormatter.cs"
+          ]
+        },
+        "wwwroot": {
+          "description": "Assets statiques",
+          "files": [
+            "css/app.css (Styles personnalisés)",
+            "js/interop.js (JavaScript interop)",
+            "index.html"
+          ]
+        }
+      }
+    }
+  },
+
+  "ui_components": {
+    "radzen_components_used": [
+      "RadzenDataGrid (Tableaux avec tri, filtres, pagination)",
+      "RadzenDialog (Modales)",
+      "RadzenNotification (Toasts)",
+      "RadzenButton, RadzenTextBox, RadzenNumeric",
+      "RadzenDropDown, RadzenDatePicker",
+      "RadzenCard, RadzenTabs",
+      "RadzenChart (Graphiques dashboard)",
+      "RadzenUpload (Upload fichiers)",
+      "RadzenSplitButton, RadzenMenu",
+      "RadzenBadge, RadzenIcon"
+    ],
+    "custom_components": [
+      {
+        "name": "SignaturePad",
+        "description": "Composant pour signature électronique avec canvas",
+        "features": ["Dessiner signature", "Clear", "Export base64", "Responsive"]
+      },
+      {
+        "name": "FileUploader",
+        "description": "Upload de fichiers avec preview et validation",
+        "features": ["Drag & drop", "Preview PDF/images", "Validation taille/type", "Progress bar"]
+      },
+      {
+        "name": "CurrencyInput",
+        "description": "Input formaté pour montants en FCFA",
+        "features": ["Format automatique", "Validation numérique", "Séparateurs milliers"]
+      }
+    ]
+  },
+
+  "pages_specification": {
+    "dashboard": {
+      "file": "Pages/Index.razor",
+      "features": [
+        "Solde caisse global (card avec icône)",
+        "Total cotisations du mois (card)",
+        "Total dépenses du mois (card)",
+        "Total recettes du mois (card)",
+        "Graphique courbe : évolution mensuelle",
+        "Graphique camembert : répartition par section",
+        "Liste des dépenses en attente de validation (top 5)",
+        "Alertes stock faible (top 5)"
+      ]
+    },
+    "sections_list": {
+      "file": "Pages/Sections/SectionsList.razor",
+      "features": [
+        "RadzenDataGrid avec toutes les sections",
+        "Colonnes : Code, Nom, Responsable, Budget, Actions",
+        "Boutons : Ajouter, Modifier, Supprimer",
+        "Recherche rapide",
+        "Export Excel"
+      ]
+    },
+    "cotisations_list": {
+      "file": "Pages/Cotisations/CotisationsList.razor",
+      "features": [
+        "Filtres : Section, Période, Statut, Membre",
+        "DataGrid : Matricule, Nom, Montant, Date paiement, Reçu N°",
+        "Total montant affiché en footer",
+        "Actions : Voir détails, Imprimer reçu, Modifier, Supprimer",
+        "Export PDF/Excel"
+      ]
+    },
+    "depenses_form": {
+      "file": "Pages/Depenses/DepenseForm.razor",
+      "features": [
+        "Formulaire en 3 étapes (wizard) : Informations, Justificatifs, Validation",
+        "Champs : Libellé, Montant, Date, Bénéficiaire, Catégorie",
+        "Upload justificatif PDF",
+        "Signature électronique (SignaturePad)",
+        "Workflow : Brouillon -> En attente -> Validé",
+        "Notifications en temps réel (SignalR)"
+      ]
+    },
+    "rapports_financiers": {
+      "file": "Pages/Rapports/RapportFinancier.razor",
+      "features": [
+        "Filtres : Date début, Date fin, Section",
+        "Tabs : Vue Synthèse, Vue Détaillée, Vue Graphique",
+        "Tableau récapitulatif : Cotisations, Recettes, Dépenses, Solde",
+        "Graphiques : Barres comparatives, Évolution temporelle",
+        "Export PDF (génération côté serveur via API)",
+        "Export Excel (client-side avec Radzen)"
+      ]
+    },
+    "magasins_stock": {
+      "file": "Pages/Magasins/StockManagement.razor",
+      "features": [
+        "Sélection magasin (dropdown)",
+        "DataGrid articles avec colonnes : Code, Désignation, Stock, Seuil alerte",
+        "Indicateur visuel stock faible (badge rouge)",
+        "Actions : Ajouter mouvement (entrée/sortie), Voir historique",
+        "Modal pour ajouter mouvement stock"
+      ]
+    }
+  },
+
+  "authentication_flow": {
+    "login": {
+      "file": "Pages/Auth/Login.razor",
+      "flow": [
+        "User entre username + password",
+        "Appel AuthService.LoginAsync()",
+        "Réception JWT token",
+        "Stockage token dans localStorage",
+        "Mise à jour AuthenticationStateProvider",
+        "Redirection vers Dashboard"
+      ]
+    },
+    "jwt_management": {
+      "file": "Helpers/JwtAuthenticationStateProvider.cs",
+      "features": [
+        "Hérite de AuthenticationStateProvider",
+        "Lit le token depuis localStorage",
+        "Décode le token pour extraire les claims (username, role, exp)",
+        "Vérifie l'expiration du token",
+        "Refresh token automatique si nécessaire",
+        "Logout : supprime token et met à jour state"
+      ]
+    },
+    "protected_pages": {
+      "usage": "@attribute [Authorize]\n@attribute [Authorize(Roles = \"Admin, Manager\")]"
+    }
+  },
+
+  "api_integration": {
+    "base_service": {
+      "file": "Services/ApiClient/BaseApiService.cs",
+      "methods": [
+        "GetAsync<T>(string endpoint)",
+        "PostAsync<T>(string endpoint, object data)",
+        "PutAsync<T>(string endpoint, object data)",
+        "DeleteAsync(string endpoint)",
+        "HandleApiResponse<T>(HttpResponseMessage response)"
+      ],
+      "features": [
+        "Injection du JWT token dans headers",
+        "Gestion des erreurs 401 (redirect login)",
+        "Gestion des erreurs 500 (notification)",
+        "Retry policy avec Polly (optionnel)",
+        "Logging des requêtes"
+      ]
+    },
+    "example_service": {
+      "file": "Services/ApiClient/CotisationService.cs",
+      "code": "public class CotisationService : BaseApiService\n{\n  private const string BaseUrl = \"/api/cotisations\";\n\n  public async Task<List<CotisationDto>> GetAllAsync()\n  {\n    return await GetAsync<List<CotisationDto>>(BaseUrl);\n  }\n\n  public async Task<CotisationDto> GetByIdAsync(long id)\n  {\n    return await GetAsync<CotisationDto>($\"{BaseUrl}/{id}\");\n  }\n\n  public async Task<CotisationDto> CreateAsync(CreateCotisationDto dto)\n  {\n    return await PostAsync<CotisationDto>(BaseUrl, dto);\n  }\n\n  public async Task<CotisationDto> UpdateAsync(long id, UpdateCotisationDto dto)\n  {\n    return await PutAsync<CotisationDto>($\"{BaseUrl}/{id}\", dto);\n  }\n\n  public async Task DeleteAsync(long id)\n  {\n    await DeleteAsync($\"{BaseUrl}/{id}\");\n  }\n}"
+    }
+  },
+
+  "state_management": {
+    "approach": "Custom State Container (simple) ou Fluxor (pour complexité)",
+    "example": {
+      "file": "Services/AppState.cs",
+      "code": "public class AppState\n{\n  private SectionDto _currentSection;\n  public SectionDto CurrentSection\n  {\n    get => _currentSection;\n    set\n    {\n      _currentSection = value;\n      NotifyStateChanged();\n    }\n  }\n\n  public event Action OnChange;\n  private void NotifyStateChanged() => OnChange?.Invoke();\n}"
+    }
+  },
+
+  "styling": {
+    "approach": "Radzen Theme + Custom CSS",
+    "theme": "Material Design ou Bootstrap (Radzen supporte les deux)",
+    "custom_css": {
+      "file": "wwwroot/css/app.css",
+      "sections": [
+        "Variables CSS pour couleurs du projet",
+        "Styles pour les cards dashboard",
+        "Responsive breakpoints",
+        "Animations et transitions",
+        "Print styles pour PDF"
+      ]
+    }
+  },
+
+  "commands": {
+    "create_blazor_project": {
+      "command": "dotnet new blazorwasm -n JIR.BlazorApp -o src/JIR.BlazorApp",
+      "then": [
+        "cd src/JIR.BlazorApp",
+        "dotnet add package Radzen.Blazor",
+        "dotnet add package Microsoft.AspNetCore.Components.WebAssembly.Authentication",
+        "dotnet add package Blazored.LocalStorage"
+      ]
+    },
+    "run_blazor": {
+      "command": "dotnet watch run --project src/JIR.BlazorApp",
+      "url": "https://localhost:5001"
+    },
+    "publish_blazor": {
+      "command": "dotnet publish src/JIR.BlazorApp -c Release -o publish/blazor"
+    }
+  },
+
+  "collaboration_protocol": {
+    "receives_from": {
+      "Architecte.NET": [
+        "Swagger/OpenAPI spec (swagger.json) pour générer les services API",
+        "DTOs definitions (JSON schema ou code C#)",
+        "Liste des endpoints disponibles",
+        "Schémas de validation (FluentValidation rules)"
+      ],
+      "DB Engineer": [
+        "Noms des entités et colonnes (pour les labels UI)",
+        "Relations entre entités (pour les dropdowns/selects)"
+      ]
+    },
+    "sends_to": {
+      "Architecte.NET": [
+        "Retours sur les DTOs (champs manquants, types inadaptés)",
+        "Besoins en nouveaux endpoints",
+        "Problèmes de validation côté serveur"
+      ],
+      "DevOps Engineer": [
+        "Configuration appsettings.json (API URL)",
+        "Variables d'environnement pour Docker",
+        "Build artifacts"
+      ],
+      "PDF Agent": [
+        "Templates HTML pour génération PDF côté serveur",
+        "Données à afficher dans les rapports"
+      ]
+    },
+    "coordination": [
+      "ATTENDRE que l'API backend soit fonctionnelle avant de tester les services",
+      "SYNCHRONISER les DTOs avec le backend (même structure)",
+      "NOTIFIER l'Architecte si un endpoint manque",
+      "UTILISER le swagger.json pour générer automatiquement les services (si possible)"
+    ]
+  },
+
+  "quality_checklist": [
+    "✅ Toutes les pages sont responsive (mobile, tablet, desktop)",
+    "✅ Toutes les API calls ont un loading state",
+    "✅ Toutes les erreurs API sont affichées à l'utilisateur",
+    "✅ L'authentification JWT fonctionne (login, logout, auto-refresh)",
+    "✅ Les formulaires ont une validation client (DataAnnotations)",
+    "✅ Les listes ont pagination + tri + recherche",
+    "✅ Le routing est configuré correctement",
+    "✅ Les composants réutilisables sont dans /Components",
+    "✅ Le code est DRY (pas de duplication)",
+    "✅ Les services API héritent de BaseApiService",
+    "✅ Le JWT token est injecté dans les headers",
+    "✅ Les pages protégées ont @attribute [Authorize]",
+    "✅ Les uploads de fichiers fonctionnent",
+    "✅ Les exports PDF/Excel fonctionnent",
+    "✅ Les graphiques du dashboard s'affichent correctement"
+  ],
+
+  "performance_optimization": [
+    "Utiliser @key dans les boucles pour optimiser le rendering",
+    "Lazy loading des pages avec Router",
+    "Virtualization pour les longues listes (RadzenDataGrid supporte)",
+    "Debounce sur les champs de recherche",
+    "Caching des données avec Blazored.LocalStorage",
+    "Minimiser les StateHasChanged() inutiles",
+    "Utiliser HttpClient avec Polly pour retry automatique"
+  ],
+
+  "example_prompts": [
+    "@blazor-engineer Initialise le projet Blazor WebAssembly avec Radzen Components",
+    "@blazor-engineer Crée toutes les pages CRUD pour les modules Sections, Cotisations, Dépenses, Recettes",
+    "@blazor-engineer Génère le dashboard principal avec les 4 cards de statistiques + 2 graphiques",
+    "@blazor-engineer Implémente l'authentification JWT complète (login, logout, state provider)",
+    "@blazor-engineer Crée le composant SignaturePad pour les signatures électroniques",
+    "@blazor-engineer Génère la page de rapports financiers avec filtres et exports PDF/Excel",
+    "@blazor-engineer Crée tous les services API pour communiquer avec le backend",
+    "@blazor-engineer Implémente la gestion du stock magasin avec mouvements entrée/sortie",
+    "@blazor-engineer Optimise les performances avec lazy loading et virtualization"
+  ]
+}

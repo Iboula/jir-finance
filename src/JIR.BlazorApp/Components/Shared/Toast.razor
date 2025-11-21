@@ -1,0 +1,48 @@
+@if (IsVisible)
+{
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 11000;">
+        <div class="toast show @GetToastClass()" role="alert">
+            <div class="toast-header">
+                <strong class="me-auto">@Title</strong>
+                <button type="button" class="btn-close" @onclick="Hide"></button>
+            </div>
+            <div class="toast-body">
+                @Message
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Title { get; set; } = "Notification";
+    [Parameter] public string Message { get; set; } = "";
+    [Parameter] public ToastType Type { get; set; } = ToastType.Info;
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback OnHide { get; set; }
+
+    private string GetToastClass()
+    {
+        return Type switch
+        {
+            ToastType.Success => "bg-success text-white",
+            ToastType.Error => "bg-danger text-white",
+            ToastType.Warning => "bg-warning",
+            ToastType.Info => "bg-info text-white",
+            _ => ""
+        };
+    }
+
+    private async Task Hide()
+    {
+        IsVisible = false;
+        await OnHide.InvokeAsync();
+    }
+
+    public enum ToastType
+    {
+        Success,
+        Error,
+        Warning,
+        Info
+    }
+}

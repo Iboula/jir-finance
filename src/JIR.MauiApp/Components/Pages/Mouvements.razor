@@ -1,0 +1,269 @@
+@page "/mouvements"
+@using JIR.MauiApp.Models
+@using JIR.MauiApp.Services
+@inject MouvementStockService MouvementService
+@inject ArticleMagasinService ArticleService
+@inject MagasinService MagasinService
+
+<h3>Mouvements de Stock</h3>
+
+<div class="mb-3">
+    <button class="btn btn-success" @onclick="() => ShowCreateForm(TypeMouvement.Entree)">
+        <span class="oi oi-arrow-thick-bottom"></span> Entrée
+    </button>
+    <button class="btn btn-danger" @onclick="() => ShowCreateForm(TypeMouvement.Sortie)">
+        <span class="oi oi-arrow-thick-top"></span> Sortie
+    </button>
+    <button class="btn btn-warning" @onclick="() => ShowCreateForm(TypeMouvement.Ajustement)">
+        <span class="oi oi-wrench"></span> Ajustement
+    </button>
+</div>
+
+@if (showForm)
+{
+    <div class="card mb-3">
+        <div class="card-header">
+            Nouveau Mouvement : @formTypeMouvement
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label class="form-label">Article</label>
+                <select class="form-select" @bind="formArticleId">
+                    <option value="">-- Sélectionner un article --</option>
+                    @if (articles != null)
+                    {
+                        @foreach (var art in articles.Articles)
+                        {
+                            <option value="@art.Id">@art.Designation (@art.MagasinNom) - Stock: @art.QuantiteStock.ToString("N2")</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Quantité</label>
+                <input type="number" step="0.01" class="form-control" @bind="formQuantite" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Date du mouvement</label>
+                <input type="datetime-local" class="form-control" @bind="formDateMouvement" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">N° Document</label>
+                <input type="text" class="form-control" @bind="formNumeroDocument" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Motif</label>
+                <textarea class="form-control" @bind="formMotif"></textarea>
+            </div>
+            <button class="btn btn-success" @onclick="SaveMouvement">Enregistrer</button>
+            <button class="btn btn-secondary" @onclick="CancelForm">Annuler</button>
+        </div>
+    </div>
+}
+
+@if (loading)
+{
+    <p><em>Chargement...</em></p>
+}
+else if (mouvements != null)
+{
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <select class="form-select" @bind="filterTypeMouvement" @bind:after="ApplyFilters">
+                <option value="">Tous les types</option>
+                <option value="Entree">Entrée</option>
+                <option value="Sortie">Sortie</option>
+                <option value="Ajustement">Ajustement</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <select class="form-select" @bind="filterMagasinId" @bind:after="ApplyFilters">
+                <option value="">Tous les magasins</option>
+                @if (magasins != null)
+                {
+                    @foreach (var mag in magasins.Magasins)
+                    {
+                        <option value="@mag.Id">@mag.Nom</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <input type="date" class="form-control" @bind="filterDateDebut" @bind:after="ApplyFilters" />
+        </div>
+        <div class="col-md-3">
+            <input type="date" class="form-control" @bind="filterDateFin" @bind:after="ApplyFilters" />
+        </div>
+    </div>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Article</th>
+                <th>Magasin</th>
+                <th>Quantité</th>
+                <th>N° Doc</th>
+                <th>Motif</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var mouv in mouvements.Items)
+            {
+                var badge = mouv.TypeMouvement switch
+                {
+                    TypeMouvement.Entree => "badge bg-success",
+                    TypeMouvement.Sortie => "badge bg-danger",
+                    TypeMouvement.Ajustement => "badge bg-warning",
+                    _ => "badge bg-secondary"
+                };
+
+                <tr>
+                    <td>@mouv.DateMouvement.ToString("dd/MM/yyyy HH:mm")</td>
+                    <td><span class="@badge">@mouv.TypeMouvement</span></td>
+                    <td>@mouv.ArticleDesignation</td>
+                    <td>@mouv.MagasinNom</td>
+                    <td>@mouv.Quantite.ToString("N2")</td>
+                    <td>@mouv.NumeroDocument</td>
+                    <td>@mouv.Motif</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteMouvement(mouv.Id)">Supprimer</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <nav>
+        <ul class="pagination">
+            @for (int i = 1; i <= mouvements.TotalPages; i++)
+            {
+                var pageNum = i;
+                <li class="page-item @(pageNum == currentPage ? "active" : "")">
+                    <a class="page-link" @onclick="() => LoadMouvements(pageNum)">@pageNum</a>
+                </li>
+            }
+        </ul>
+    </nav>
+}
+
+@code {
+    private MouvementsStockListResult? mouvements;
+    private ArticlesMagasinListResult? articles;
+    private MagasinsListResult? magasins;
+    private bool loading = true;
+    private bool showForm = false;
+    private int currentPage = 1;
+
+    // Filters
+    private string filterTypeMouvement = "";
+    private string filterMagasinId = "";
+    private DateTime? filterDateDebut = null;
+    private DateTime? filterDateFin = null;
+
+    // Form fields
+    private TypeMouvement formTypeMouvement = TypeMouvement.Entree;
+    private string formArticleId = "";
+    private decimal formQuantite = 0;
+    private DateTime formDateMouvement = DateTime.Now;
+    private string? formNumeroDocument = "";
+    private string? formMotif = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMagasins();
+        await LoadArticles();
+        await LoadMouvements();
+    }
+
+    private async Task LoadMagasins()
+    {
+        magasins = await MagasinService.GetAllAsync(1, 100);
+    }
+
+    private async Task LoadArticles()
+    {
+        articles = await ArticleService.GetAllAsync(1, 50);
+    }
+
+    private async Task LoadMouvements(int page = 1)
+    {
+        loading = true;
+        currentPage = page;
+
+        TypeMouvement? typeFilter = string.IsNullOrEmpty(filterTypeMouvement) ? null : Enum.Parse<TypeMouvement>(filterTypeMouvement);
+        Guid? magasinFilter = string.IsNullOrEmpty(filterMagasinId) ? null : Guid.Parse(filterMagasinId);
+
+        mouvements = await MouvementService.GetAllAsync(
+            page, 
+            10, 
+            null, 
+            magasinFilter, 
+            typeFilter, 
+            filterDateDebut, 
+            filterDateFin
+        );
+        loading = false;
+    }
+
+    private async Task ApplyFilters()
+    {
+        await LoadMouvements(1);
+    }
+
+    private void ShowCreateForm(TypeMouvement type)
+    {
+        formTypeMouvement = type;
+        formArticleId = "";
+        formQuantite = 0;
+        formDateMouvement = DateTime.Now;
+        formNumeroDocument = "";
+        formMotif = "";
+        showForm = true;
+    }
+
+    private async Task SaveMouvement()
+    {
+        try
+        {
+            await MouvementService.CreateAsync(new CreateMouvementStockRequest
+            {
+                ArticleId = Guid.Parse(formArticleId),
+                TypeMouvement = formTypeMouvement,
+                Quantite = formQuantite,
+                DateMouvement = formDateMouvement,
+                NumeroDocument = formNumeroDocument,
+                Motif = formMotif
+            });
+
+            showForm = false;
+            await LoadMouvements(currentPage);
+            await LoadArticles(); // Refresh articles to update stock display
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+    }
+
+    private void CancelForm()
+    {
+        showForm = false;
+    }
+
+    private async Task DeleteMouvement(Guid id)
+    {
+        try
+        {
+            await MouvementService.DeleteAsync(id);
+            await LoadMouvements(currentPage);
+            await LoadArticles(); // Refresh articles to update stock display
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+    }
+}

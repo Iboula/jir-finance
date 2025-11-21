@@ -1,0 +1,381 @@
+@page "/mouvements"
+@using JIR.BlazorApp.Models
+@using JIR.BlazorApp.Services
+@inject MouvementStockService MouvementService
+@inject ArticleMagasinService ArticleService
+@inject MagasinService MagasinService
+@inject ToastService ToastService
+@inject ConfirmDialogService ConfirmDialogService
+@rendermode InteractiveServer
+
+<h3>Gestion des Mouvements de Stock</h3>
+
+<div class="mb-3">
+    <button class="btn btn-success" @onclick="() => ShowCreateForm(TypeMouvement.Entree)">
+        <span class="oi oi-arrow-thick-bottom"></span> Entrée
+    </button>
+    <button class="btn btn-danger" @onclick="() => ShowCreateForm(TypeMouvement.Sortie)">
+        <span class="oi oi-arrow-thick-top"></span> Sortie
+    </button>
+    <button class="btn btn-warning" @onclick="() => ShowCreateForm(TypeMouvement.Ajustement)">
+        <span class="oi oi-wrench"></span> Ajustement
+    </button>
+</div>
+
+@if (showForm)
+{
+    <div class="card mb-3">
+        <div class="card-header">
+            Nouveau Mouvement : @formTypeMouvement
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label class="form-label">Article <span class="text-danger">*</span></label>
+                <select class="form-select @(string.IsNullOrEmpty(formArticleId) && formValidated ? "is-invalid" : "")" 
+                        @bind="formArticleId" required>
+                    <option value="">-- Sélectionner un article --</option>
+                    @if (articles != null)
+                    {
+                        @foreach (var art in articles.Articles)
+                        {
+                            <option value="@art.Id">@art.Designation (@art.MagasinNom) - Stock: @art.QuantiteStock.ToString("N2")</option>
+                        }
+                    }
+                </select>
+                @if (string.IsNullOrEmpty(formArticleId) && formValidated)
+                {
+                    <div class="invalid-feedback d-block">Veuillez sélectionner un article</div>
+                }
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Quantité <span class="text-danger">*</span></label>
+                <input type="number" step="0.01" class="form-control @(formQuantite <= 0 && formValidated ? "is-invalid" : "")" 
+                       @bind="formQuantite" required min="0.01" />
+                @if (formQuantite <= 0 && formValidated)
+                {
+                    <div class="invalid-feedback d-block">La quantité doit être supérieure à 0</div>
+                }
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Date du mouvement</label>
+                <input type="datetime-local" class="form-control" @bind="formDateMouvement" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">N° Document</label>
+                <input type="text" class="form-control" @bind="formNumeroDocument" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Motif</label>
+                <textarea class="form-control" @bind="formMotif"></textarea>
+            </div>
+            <button class="btn btn-success" @onclick="SaveMouvement">Enregistrer</button>
+            <button class="btn btn-secondary" @onclick="CancelForm">Annuler</button>
+        </div>
+    </div>
+}
+
+@if (loading)
+{
+    <p><em>Chargement...</em></p>
+}
+else if (mouvements != null)
+{
+    <div class="card mb-3">
+        <div class="card-header">
+            <i class="oi oi-magnifying-glass"></i> Filtres de recherche
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Type de mouvement</label>
+                    <select class="form-select" @bind="filterTypeMouvement" @bind:after="ApplyFilters">
+                        <option value="">Tous les types</option>
+                        <option value="Entree">Entrée</option>
+                        <option value="Sortie">Sortie</option>
+                        <option value="Ajustement">Ajustement</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Magasin</label>
+                    <select class="form-select" @bind="filterMagasinId" @bind:after="ApplyFilters">
+                        <option value="">Tous les magasins</option>
+                        @if (magasins != null)
+                        {
+                            @foreach (var mag in magasins.Magasins)
+                            {
+                                <option value="@mag.Id">@mag.Nom</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Article</label>
+                    <input type="text" class="form-control" placeholder="Rechercher un article..." 
+                           @bind="filterArticleSearch" @bind:event="oninput" @bind:after="ApplyFilters" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">&nbsp;</label>
+                    <button class="btn btn-secondary w-100" @onclick="ResetFilters">
+                        <i class="oi oi-x"></i> Réinitialiser
+                    </button>
+                </div>
+            </div>
+            <div class="row g-3 mt-2">
+                <div class="col-md-3">
+                    <label class="form-label">Date début</label>
+                    <input type="date" class="form-control" placeholder="Date début" 
+                           @bind="filterDateDebut" @bind:after="ApplyFilters" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Date fin</label>
+                    <input type="date" class="form-control" placeholder="Date fin" 
+                           @bind="filterDateFin" @bind:after="ApplyFilters" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">N° Document</label>
+                    <input type="text" class="form-control" placeholder="N° Document..." 
+                           @bind="filterNumeroDocument" @bind:event="oninput" @bind:after="ApplyFilters" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Résultats</label>
+                    <div class="alert alert-info mb-0 py-2">
+                        <strong>@filteredMouvements.Count()</strong> mouvement(s) trouvé(s)
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Article</th>
+                <th>Magasin</th>
+                <th>Quantité</th>
+                <th>N° Doc</th>
+                <th>Motif</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var mouv in filteredMouvements)
+            {
+                var badge = mouv.TypeMouvement switch
+                {
+                    TypeMouvement.Entree => "badge bg-success",
+                    TypeMouvement.Sortie => "badge bg-danger",
+                    TypeMouvement.Ajustement => "badge bg-warning",
+                    _ => "badge bg-secondary"
+                };
+
+                <tr>
+                    <td>@mouv.DateMouvement.ToString("dd/MM/yyyy HH:mm")</td>
+                    <td><span class="@badge">@mouv.TypeMouvement</span></td>
+                    <td>@mouv.ArticleDesignation</td>
+                    <td>@mouv.MagasinNom</td>
+                    <td>@mouv.Quantite.ToString("N2")</td>
+                    <td>@mouv.NumeroDocument</td>
+                    <td>@mouv.Motif</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteMouvement(mouv.Id)">Supprimer</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <nav>
+        <ul class="pagination">
+            @for (int i = 1; i <= mouvements.TotalPages; i++)
+            {
+                var pageNum = i;
+                <li class="page-item @(pageNum == currentPage ? "active" : "")">
+                    <a class="page-link" @onclick="() => LoadMouvements(pageNum)">@pageNum</a>
+                </li>
+            }
+        </ul>
+    </nav>
+}
+
+@code {
+    private MouvementsStockListResult? mouvements;
+    private ArticlesMagasinListResult? articles;
+    private MagasinsListResult? magasins;
+    private bool loading = true;
+    private bool showForm = false;
+    private int currentPage = 1;
+
+    // Filters
+    private string filterTypeMouvement = "";
+    private string filterMagasinId = "";
+    private DateTime? filterDateDebut = null;
+    private DateTime? filterDateFin = null;
+    private string filterArticleSearch = "";
+    private string filterNumeroDocument = "";
+
+    private IEnumerable<MouvementStockDto> filteredMouvements => FilterMouvements();
+
+    // Form fields
+    private TypeMouvement formTypeMouvement = TypeMouvement.Entree;
+    private string formArticleId = "";
+    private decimal formQuantite = 0;
+    private DateTime formDateMouvement = DateTime.Now;
+    private string? formNumeroDocument = "";
+    private string? formMotif = "";
+    private bool formValidated = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMagasins();
+        await LoadArticles();
+        await LoadMouvements();
+    }
+
+    private async Task LoadMagasins()
+    {
+        magasins = await MagasinService.GetAllAsync(1, 100);
+    }
+
+    private async Task LoadArticles()
+    {
+        articles = await ArticleService.GetAllAsync(1, 50);
+    }
+
+    private async Task LoadMouvements(int page = 1)
+    {
+        loading = true;
+        currentPage = page;
+
+        TypeMouvement? typeFilter = string.IsNullOrEmpty(filterTypeMouvement) ? null : Enum.Parse<TypeMouvement>(filterTypeMouvement);
+        Guid? magasinFilter = string.IsNullOrEmpty(filterMagasinId) ? null : Guid.Parse(filterMagasinId);
+
+        mouvements = await MouvementService.GetAllAsync(
+            page, 
+            10, 
+            null, 
+            magasinFilter, 
+            typeFilter, 
+            filterDateDebut, 
+            filterDateFin
+        );
+        loading = false;
+    }
+
+    private IEnumerable<MouvementStockDto> FilterMouvements()
+    {
+        if (mouvements?.Items == null)
+            return Enumerable.Empty<MouvementStockDto>();
+
+        var filtered = mouvements.Items.AsEnumerable();
+
+        // Filtre par article (recherche dans la désignation)
+        if (!string.IsNullOrWhiteSpace(filterArticleSearch))
+        {
+            filtered = filtered.Where(m => 
+                m.ArticleDesignation?.Contains(filterArticleSearch, StringComparison.OrdinalIgnoreCase) == true);
+        }
+
+        // Filtre par numéro de document
+        if (!string.IsNullOrWhiteSpace(filterNumeroDocument))
+        {
+            filtered = filtered.Where(m => 
+                m.NumeroDocument?.Contains(filterNumeroDocument, StringComparison.OrdinalIgnoreCase) == true);
+        }
+
+        return filtered;
+    }
+
+    private async Task ApplyFilters()
+    {
+        await LoadMouvements(1);
+    }
+
+    private async Task ResetFilters()
+    {
+        filterTypeMouvement = "";
+        filterMagasinId = "";
+        filterDateDebut = null;
+        filterDateFin = null;
+        filterArticleSearch = "";
+        filterNumeroDocument = "";
+        await LoadMouvements(1);
+    }
+
+    private void ShowCreateForm(TypeMouvement type)
+    {
+        formTypeMouvement = type;
+        formArticleId = "";
+        formQuantite = 0;
+        formDateMouvement = DateTime.Now;
+        formNumeroDocument = "";
+        formMotif = "";
+        formValidated = false;
+        showForm = true;
+    }
+
+    private async Task SaveMouvement()
+    {
+        formValidated = true;
+
+        // Validation
+        if (string.IsNullOrEmpty(formArticleId) || formQuantite <= 0)
+        {
+            ToastService.ShowWarning("Veuillez remplir tous les champs obligatoires", "Validation");
+            return;
+        }
+
+        try
+        {
+            await MouvementService.CreateAsync(new CreateMouvementStockRequest
+            {
+                ArticleId = Guid.Parse(formArticleId),
+                TypeMouvement = formTypeMouvement,
+                Quantite = formQuantite,
+                DateMouvement = formDateMouvement,
+                NumeroDocument = formNumeroDocument,
+                Motif = formMotif
+            });
+
+            ToastService.ShowSuccess("Mouvement de stock enregistré avec succès!");
+            showForm = false;
+            formValidated = false;
+            await LoadMouvements(currentPage);
+            await LoadArticles(); // Refresh articles to update stock display
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Erreur lors de l'enregistrement: {ex.Message}");
+        }
+    }
+
+    private void CancelForm()
+    {
+        showForm = false;
+    }
+
+    private async Task DeleteMouvement(Guid id)
+    {
+        var confirmed = await ConfirmDialogService.ShowAsync(
+            "Confirmer la suppression",
+            "Êtes-vous sûr de vouloir supprimer ce mouvement de stock ? Cette action est irréversible.",
+            "Supprimer"
+        );
+
+        if (!confirmed)
+            return;
+
+        try
+        {
+            await MouvementService.DeleteAsync(id);
+            ToastService.ShowSuccess("Mouvement supprimé avec succès!");
+            await LoadMouvements(currentPage);
+            await LoadArticles(); // Refresh articles to update stock display
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Erreur lors de la suppression: {ex.Message}");
+        }
+    }
+}

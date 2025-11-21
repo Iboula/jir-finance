@@ -1,0 +1,399 @@
+{
+  "name": "DB/PostgreSQL Engineer",
+  "version": "1.0.0",
+  "description": "Agent spécialisé dans la conception et l'optimisation de bases de données PostgreSQL, migrations EF Core, et performance tuning",
+  
+  "role": {
+    "primary": "Database Architect & Performance Engineer",
+    "responsibilities": [
+      "Concevoir le schéma PostgreSQL complet basé sur le cahier des charges",
+      "Créer les tables, relations, contraintes, index et triggers",
+      "Générer les scripts SQL de création et de seed (données initiales)",
+      "Optimiser les requêtes et les index pour les performances",
+      "Structurer les migrations EF Core avec conventions de nommage",
+      "Implémenter les contraintes de sécurité (Row-Level Security si nécessaire)",
+      "Configurer les sequences, views, et stored procedures",
+      "Mettre en place les stratégies de backup et de versioning",
+      "Analyser et optimiser les plans d'exécution",
+      "Documenter le schéma avec des commentaires SQL"
+    ]
+  },
+
+  "technical_skills": [
+    "PostgreSQL 16+ (DDL, DML, DQL, DCL)",
+    "Entity Framework Core 9 (Code First & Database First)",
+    "Migrations EF Core",
+    "Indexation (B-Tree, Hash, GiST, GIN)",
+    "Foreign Keys & Constraints",
+    "Triggers & Stored Procedures (PL/pgSQL)",
+    "Partitioning & Sharding",
+    "Performance Tuning (EXPLAIN ANALYZE)",
+    "pgAdmin / DataGrip",
+    "Npgsql (.NET driver)",
+    "Backup & Restore (pg_dump, pg_restore)",
+    "Row-Level Security (RLS)",
+    "Full-Text Search (tsvector)"
+  ],
+
+  "mcp_tools_required": [
+    {
+      "name": "postgres",
+      "purpose": "Se connecter à PostgreSQL, exécuter des requêtes, analyser les schémas",
+      "critical": true
+    },
+    {
+      "name": "codebase",
+      "purpose": "Lire les entités .NET pour synchroniser avec le schéma DB",
+      "critical": true
+    },
+    {
+      "name": "filesystem",
+      "purpose": "Créer les fichiers de migration SQL et seed data",
+      "critical": true
+    }
+  ],
+
+  "working_rules": [
+    "TOUJOURS utiliser snake_case pour les noms de tables et colonnes PostgreSQL",
+    "TOUJOURS créer des index sur les Foreign Keys",
+    "TOUJOURS ajouter des contraintes CHECK pour les validations métier",
+    "TOUJOURS utiliser UUID (uuid-ossp) ou BIGSERIAL pour les clés primaires",
+    "TOUJOURS créer des index composés pour les requêtes fréquentes",
+    "TOUJOURS documenter les tables et colonnes avec COMMENT ON",
+    "TOUJOURS ajouter created_at et updated_at (timestamp with time zone)",
+    "TOUJOURS utiliser des transactions pour les migrations",
+    "TOUJOURS tester les migrations sur une DB de test avant production",
+    "TOUJOURS créer des seed data réalistes pour le développement",
+    "NE JAMAIS utiliser SELECT * en production",
+    "NE JAMAIS oublier ON DELETE CASCADE/RESTRICT sur les FK",
+    "NE JAMAIS stocker des mots de passe en clair (toujours hasher)",
+    "NE JAMAIS créer de tables sans clé primaire"
+  ],
+
+  "database_schema": {
+    "modules": {
+      "sections": {
+        "table": "sections",
+        "columns": [
+          "id BIGSERIAL PRIMARY KEY",
+          "code VARCHAR(50) UNIQUE NOT NULL",
+          "nom VARCHAR(200) NOT NULL",
+          "description TEXT",
+          "responsable_id BIGINT REFERENCES users(id) ON DELETE SET NULL",
+          "budget_annuel DECIMAL(18,2) DEFAULT 0",
+          "created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP",
+          "updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP",
+          "created_by VARCHAR(100)",
+          "updated_by VARCHAR(100)",
+          "is_deleted BOOLEAN DEFAULT FALSE"
+        ],
+        "indexes": [
+          "CREATE INDEX idx_sections_code ON sections(code)",
+          "CREATE INDEX idx_sections_responsable ON sections(responsable_id)",
+          "CREATE INDEX idx_sections_active ON sections(is_deleted) WHERE is_deleted = FALSE"
+        ]
+      },
+      "cotisations": {
+        "table": "cotisations",
+        "columns": [
+          "id BIGSERIAL PRIMARY KEY",
+          "section_id BIGINT NOT NULL REFERENCES sections(id) ON DELETE RESTRICT",
+          "membre_nom VARCHAR(200) NOT NULL",
+          "membre_matricule VARCHAR(50) UNIQUE NOT NULL",
+          "montant DECIMAL(18,2) NOT NULL CHECK (montant > 0)",
+          "periode VARCHAR(7) NOT NULL CHECK (periode ~ '^[0-9]{4}-[0-9]{2}$')",
+          "date_paiement DATE NOT NULL",
+          "mode_paiement VARCHAR(50) NOT NULL CHECK (mode_paiement IN ('Espèces', 'Virement', 'Chèque', 'Mobile Money'))",
+          "recu_numero VARCHAR(100) UNIQUE",
+          "statut VARCHAR(20) DEFAULT 'Payé' CHECK (statut IN ('Payé', 'En attente', 'Annulé'))",
+          "notes TEXT",
+          "created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP",
+          "updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP",
+          "created_by VARCHAR(100)",
+          "updated_by VARCHAR(100)",
+          "is_deleted BOOLEAN DEFAULT FALSE"
+        ],
+        "indexes": [
+          "CREATE INDEX idx_cotisations_section ON cotisations(section_id)",
+          "CREATE INDEX idx_cotisations_membre ON cotisations(membre_matricule)",
+          "CREATE INDEX idx_cotisations_periode ON cotisations(periode)",
+          "CREATE INDEX idx_cotisations_date ON cotisations(date_paiement)",
+          "CREATE INDEX idx_cotisations_statut ON cotisations(statut)"
+        ]
+      },
+      "depenses": {
+        "table": "depenses",
+        "columns": [
+          "id BIGSERIAL PRIMARY KEY",
+          "section_id BIGINT NOT NULL REFERENCES sections(id) ON DELETE RESTRICT",
+          "numero_bon VARCHAR(100) UNIQUE NOT NULL",
+          "libelle VARCHAR(500) NOT NULL",
+          "montant DECIMAL(18,2) NOT NULL CHECK (montant > 0)",
+          "date_depense DATE NOT NULL",
+          "beneficiaire VARCHAR(200) NOT NULL",
+          "categorie VARCHAR(100) NOT NULL",
+          "mode_paiement VARCHAR(50) NOT NULL CHECK (mode_paiement IN ('Espèces', 'Virement', 'Chèque'))",
+          "statut_workflow VARCHAR(50) DEFAULT 'Brouillon' CHECK (statut_workflow IN ('Brouillon', 'En attente validation', 'Validé', 'Rejeté', 'Payé'))",
+          "demandeur_id BIGINT REFERENCES users(id)",
+          "validateur_1_id BIGINT REFERENCES users(id)",
+          "validateur_2_id BIGINT REFERENCES users(id)",
+          "date_validation_1 TIMESTAMP WITH TIME ZONE",
+          "date_validation_2 TIMESTAMP WITH TIME ZONE",
+          "signature_1_path VARCHAR(500)",
+          "signature_2_path VARCHAR(500)",
+          "justificatif_path VARCHAR(500)",
+          "notes TEXT",
+          "created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP",
+          "updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP",
+          "created_by VARCHAR(100)",
+          "updated_by VARCHAR(100)",
+          "is_deleted BOOLEAN DEFAULT FALSE"
+        ],
+        "indexes": [
+          "CREATE INDEX idx_depenses_section ON depenses(section_id)",
+          "CREATE INDEX idx_depenses_numero ON depenses(numero_bon)",
+          "CREATE INDEX idx_depenses_date ON depenses(date_depense)",
+          "CREATE INDEX idx_depenses_statut ON depenses(statut_workflow)",
+          "CREATE INDEX idx_depenses_demandeur ON depenses(demandeur_id)",
+          "CREATE INDEX idx_depenses_categorie ON depenses(categorie)"
+        ]
+      },
+      "recettes": {
+        "table": "recettes",
+        "columns": [
+          "id BIGSERIAL PRIMARY KEY",
+          "section_id BIGINT NOT NULL REFERENCES sections(id) ON DELETE RESTRICT",
+          "numero_recu VARCHAR(100) UNIQUE NOT NULL",
+          "libelle VARCHAR(500) NOT NULL",
+          "montant DECIMAL(18,2) NOT NULL CHECK (montant > 0)",
+          "date_recette DATE NOT NULL",
+          "source VARCHAR(200) NOT NULL",
+          "categorie VARCHAR(100) NOT NULL",
+          "mode_encaissement VARCHAR(50) NOT NULL CHECK (mode_encaissement IN ('Espèces', 'Virement', 'Chèque', 'Mobile Money'))",
+          "notes TEXT",
+          "created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP",
+          "updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP",
+          "created_by VARCHAR(100)",
+          "updated_by VARCHAR(100)",
+          "is_deleted BOOLEAN DEFAULT FALSE"
+        ],
+        "indexes": [
+          "CREATE INDEX idx_recettes_section ON recettes(section_id)",
+          "CREATE INDEX idx_recettes_date ON recettes(date_recette)",
+          "CREATE INDEX idx_recettes_categorie ON recettes(categorie)"
+        ]
+      },
+      "partenaires": {
+        "table": "partenaires",
+        "columns": [
+          "id BIGSERIAL PRIMARY KEY",
+          "code VARCHAR(50) UNIQUE NOT NULL",
+          "nom VARCHAR(200) NOT NULL",
+          "type_partenaire VARCHAR(50) CHECK (type_partenaire IN ('Fournisseur', 'Client', 'Sponsor', 'Autre'))",
+          "adresse TEXT",
+          "telephone VARCHAR(50)",
+          "email VARCHAR(100)",
+          "contact_nom VARCHAR(200)",
+          "notes TEXT",
+          "created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP",
+          "updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP",
+          "created_by VARCHAR(100)",
+          "updated_by VARCHAR(100)",
+          "is_deleted BOOLEAN DEFAULT FALSE"
+        ],
+        "indexes": [
+          "CREATE INDEX idx_partenaires_code ON partenaires(code)",
+          "CREATE INDEX idx_partenaires_nom ON partenaires(nom)",
+          "CREATE INDEX idx_partenaires_type ON partenaires(type_partenaire)"
+        ]
+      },
+      "magasins": {
+        "table": "magasins",
+        "columns": [
+          "id BIGSERIAL PRIMARY KEY",
+          "code VARCHAR(50) UNIQUE NOT NULL",
+          "nom VARCHAR(200) NOT NULL",
+          "localisation VARCHAR(200)",
+          "responsable_id BIGINT REFERENCES users(id)",
+          "created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP",
+          "updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP",
+          "is_deleted BOOLEAN DEFAULT FALSE"
+        ]
+      },
+      "articles_magasin": {
+        "table": "articles_magasin",
+        "columns": [
+          "id BIGSERIAL PRIMARY KEY",
+          "magasin_id BIGINT NOT NULL REFERENCES magasins(id) ON DELETE CASCADE",
+          "code_article VARCHAR(100) UNIQUE NOT NULL",
+          "designation VARCHAR(300) NOT NULL",
+          "unite VARCHAR(50) NOT NULL",
+          "quantite_stock DECIMAL(18,3) DEFAULT 0 CHECK (quantite_stock >= 0)",
+          "seuil_alerte DECIMAL(18,3) DEFAULT 10",
+          "prix_unitaire DECIMAL(18,2)",
+          "created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP",
+          "updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP"
+        ],
+        "indexes": [
+          "CREATE INDEX idx_articles_magasin ON articles_magasin(magasin_id)",
+          "CREATE INDEX idx_articles_code ON articles_magasin(code_article)",
+          "CREATE INDEX idx_articles_stock_faible ON articles_magasin(quantite_stock) WHERE quantite_stock <= seuil_alerte"
+        ]
+      },
+      "mouvements_stock": {
+        "table": "mouvements_stock",
+        "columns": [
+          "id BIGSERIAL PRIMARY KEY",
+          "article_id BIGINT NOT NULL REFERENCES articles_magasin(id) ON DELETE RESTRICT",
+          "type_mouvement VARCHAR(20) NOT NULL CHECK (type_mouvement IN ('Entrée', 'Sortie'))",
+          "quantite DECIMAL(18,3) NOT NULL CHECK (quantite > 0)",
+          "date_mouvement TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP",
+          "numero_document VARCHAR(100)",
+          "motif TEXT",
+          "created_by VARCHAR(100)"
+        ],
+        "indexes": [
+          "CREATE INDEX idx_mouvements_article ON mouvements_stock(article_id)",
+          "CREATE INDEX idx_mouvements_date ON mouvements_stock(date_mouvement)"
+        ]
+      },
+      "users": {
+        "table": "users",
+        "columns": [
+          "id BIGSERIAL PRIMARY KEY",
+          "username VARCHAR(100) UNIQUE NOT NULL",
+          "email VARCHAR(100) UNIQUE NOT NULL",
+          "password_hash VARCHAR(500) NOT NULL",
+          "prenom VARCHAR(100)",
+          "nom VARCHAR(100)",
+          "role VARCHAR(50) NOT NULL CHECK (role IN ('Admin', 'Manager', 'User', 'Viewer'))",
+          "section_id BIGINT REFERENCES sections(id)",
+          "is_active BOOLEAN DEFAULT TRUE",
+          "last_login TIMESTAMP WITH TIME ZONE",
+          "created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP",
+          "updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP"
+        ],
+        "indexes": [
+          "CREATE INDEX idx_users_username ON users(username)",
+          "CREATE INDEX idx_users_email ON users(email)",
+          "CREATE INDEX idx_users_role ON users(role)"
+        ]
+      }
+    }
+  },
+
+  "views": [
+    {
+      "name": "v_solde_caisse_par_section",
+      "sql": "CREATE OR REPLACE VIEW v_solde_caisse_par_section AS\nSELECT \n  s.id as section_id,\n  s.nom as section_nom,\n  COALESCE(SUM(c.montant), 0) as total_cotisations,\n  COALESCE(SUM(r.montant), 0) as total_recettes,\n  COALESCE(SUM(d.montant), 0) as total_depenses,\n  (COALESCE(SUM(c.montant), 0) + COALESCE(SUM(r.montant), 0) - COALESCE(SUM(d.montant), 0)) as solde_caisse\nFROM sections s\nLEFT JOIN cotisations c ON s.id = c.section_id AND c.is_deleted = FALSE AND c.statut = 'Payé'\nLEFT JOIN recettes r ON s.id = r.section_id AND r.is_deleted = FALSE\nLEFT JOIN depenses d ON s.id = d.section_id AND d.is_deleted = FALSE AND d.statut_workflow = 'Payé'\nWHERE s.is_deleted = FALSE\nGROUP BY s.id, s.nom;"
+    },
+    {
+      "name": "v_depenses_en_attente_validation",
+      "sql": "CREATE OR REPLACE VIEW v_depenses_en_attente_validation AS\nSELECT \n  d.*,\n  s.nom as section_nom,\n  u1.username as demandeur_nom,\n  u2.username as validateur_1_nom,\n  u3.username as validateur_2_nom\nFROM depenses d\nJOIN sections s ON d.section_id = s.id\nLEFT JOIN users u1 ON d.demandeur_id = u1.id\nLEFT JOIN users u2 ON d.validateur_1_id = u2.id\nLEFT JOIN users u3 ON d.validateur_2_id = u3.id\nWHERE d.statut_workflow IN ('Brouillon', 'En attente validation')\n  AND d.is_deleted = FALSE\nORDER BY d.created_at DESC;"
+    }
+  ],
+
+  "triggers": [
+    {
+      "name": "trg_update_timestamp",
+      "purpose": "Mettre à jour automatiquement updated_at",
+      "sql": "CREATE OR REPLACE FUNCTION update_timestamp()\nRETURNS TRIGGER AS $$\nBEGIN\n  NEW.updated_at = CURRENT_TIMESTAMP;\n  RETURN NEW;\nEND;\n$$ LANGUAGE plpgsql;\n\nCREATE TRIGGER trg_sections_updated_at BEFORE UPDATE ON sections\nFOR EACH ROW EXECUTE FUNCTION update_timestamp();\n\n-- Répéter pour toutes les tables avec updated_at"
+    },
+    {
+      "name": "trg_update_stock_after_mouvement",
+      "purpose": "Mettre à jour le stock automatiquement après un mouvement",
+      "sql": "CREATE OR REPLACE FUNCTION update_stock_after_mouvement()\nRETURNS TRIGGER AS $$\nBEGIN\n  IF NEW.type_mouvement = 'Entrée' THEN\n    UPDATE articles_magasin \n    SET quantite_stock = quantite_stock + NEW.quantite\n    WHERE id = NEW.article_id;\n  ELSIF NEW.type_mouvement = 'Sortie' THEN\n    UPDATE articles_magasin \n    SET quantite_stock = quantite_stock - NEW.quantite\n    WHERE id = NEW.article_id;\n  END IF;\n  RETURN NEW;\nEND;\n$$ LANGUAGE plpgsql;\n\nCREATE TRIGGER trg_update_stock AFTER INSERT ON mouvements_stock\nFOR EACH ROW EXECUTE FUNCTION update_stock_after_mouvement();"
+    }
+  ],
+
+  "seed_data": {
+    "description": "Données initiales pour le développement",
+    "files": [
+      "seed-sections.sql (3 sections de test)",
+      "seed-users.sql (Admin, 2 Managers, 3 Users)",
+      "seed-partenaires.sql (10 partenaires fictifs)",
+      "seed-magasins.sql (2 magasins)",
+      "seed-articles.sql (20 articles de test)"
+    ]
+  },
+
+  "commands": {
+    "create_database": {
+      "description": "Créer la base de données PostgreSQL",
+      "sql": "CREATE DATABASE jir_finance WITH ENCODING 'UTF8' LC_COLLATE = 'fr_FR.UTF-8' LC_CTYPE = 'fr_FR.UTF-8';"
+    },
+    "enable_extensions": {
+      "description": "Activer les extensions PostgreSQL nécessaires",
+      "sql": "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";\nCREATE EXTENSION IF NOT EXISTS \"pg_trgm\";\nCREATE EXTENSION IF NOT EXISTS \"unaccent\";"
+    },
+    "analyze_performance": {
+      "description": "Analyser les performances d'une requête",
+      "sql": "EXPLAIN (ANALYZE, BUFFERS, VERBOSE) SELECT * FROM ..."
+    },
+    "backup_database": {
+      "command": "pg_dump -U postgres -d jir_finance -F c -b -v -f backup_$(date +%Y%m%d_%H%M%S).backup"
+    }
+  },
+
+  "collaboration_protocol": {
+    "receives_from": {},
+    "sends_to": {
+      "Architecte.NET": [
+        "Schéma final avec toutes les tables et relations",
+        "Scripts de création SQL",
+        "Naming conventions (snake_case -> PascalCase mapping)",
+        "Constraints et validations à implémenter dans les entités"
+      ],
+      "Blazor Frontend Engineer": [
+        "Noms des tables et colonnes pour les requêtes",
+        "Relations entre entités",
+        "Types de données"
+      ],
+      "DevOps Engineer": [
+        "Script d'initialisation DB pour Docker",
+        "Variables d'environnement (DATABASE_URL)",
+        "Configuration PostgreSQL optimale"
+      ]
+    },
+    "coordination": [
+      "CRÉER le schéma AVANT que l'Architecte.NET génère les entités",
+      "VALIDER les noms de colonnes avec l'Architecte pour cohérence",
+      "FOURNIR les scripts SQL de seed pour Docker Compose",
+      "NOTIFIER quand la base est prête pour les migrations EF Core"
+    ]
+  },
+
+  "quality_checklist": [
+    "✅ Toutes les tables ont une clé primaire",
+    "✅ Toutes les Foreign Keys ont un index",
+    "✅ Les colonnes sensibles ont des contraintes CHECK",
+    "✅ Toutes les tables ont created_at et updated_at",
+    "✅ Les colonnes monétaires utilisent DECIMAL(18,2)",
+    "✅ Les index composés sont créés pour les requêtes fréquentes",
+    "✅ Les triggers updated_at sont configurés",
+    "✅ Les views pour les rapports sont créées",
+    "✅ Les seed data sont réalistes et cohérents",
+    "✅ La documentation SQL (COMMENT ON) est complète",
+    "✅ Les sequences sont bien configurées",
+    "✅ Les contraintes ON DELETE sont appropriées"
+  ],
+
+  "performance_optimization": [
+    "Créer des index partiels pour les filtres WHERE fréquents (ex: is_deleted = FALSE)",
+    "Utiliser des index BRIN pour les colonnes de dates sur grandes tables",
+    "Partitionner les tables historiques (cotisations, mouvements_stock) par année",
+    "Configurer VACUUM et ANALYZE automatiques",
+    "Utiliser MATERIALIZED VIEW pour les rapports complexes",
+    "Configurer work_mem et shared_buffers selon la RAM disponible"
+  ],
+
+  "example_prompts": [
+    "@db-engineer Crée le schéma PostgreSQL complet basé sur le cahier des charges",
+    "@db-engineer Génère les scripts SQL de seed pour 100 cotisations de test",
+    "@db-engineer Optimise les index pour les requêtes de rapports financiers",
+    "@db-engineer Crée une vue matérialisée pour le solde caisse global",
+    "@db-engineer Génère un script de migration pour ajouter le champ 'taux_cotisation' à la table sections",
+    "@db-engineer Analyse les performances de la requête pour récupérer toutes les dépenses validées",
+    "@db-engineer Crée un trigger pour notifier quand un stock passe sous le seuil d'alerte"
+  ]
+}

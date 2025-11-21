@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # Base de données PostgreSQL
+  postgres:
+    image: postgres:16-alpine
+    container_name: jir-postgres
+    environment:
+      POSTGRES_USER: jir_user
+      POSTGRES_PASSWORD: jir_password
+      POSTGRES_DB: jir_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - jir-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jir_user -d jir_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # API Backend
+  api:
+    build:
+      context: ./src
+      dockerfile: JIR.WebAPI/Dockerfile
+    container_name: jir-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=jir_db;Username=jir_user;Password=jir_password
+    ports:
+      - "5001:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - jir-network
+    restart: unless-stopped
+
+  # Blazor Frontend
+  blazor:
+    build:
+      context: ./src
+      dockerfile: JIR.BlazorApp/Dockerfile
+    container_name: jir-blazor
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ApiBaseUrl=http://api:8080
+    ports:
+      - "5002:8080"
+    depends_on:
+      - api
+    networks:
+      - jir-network
+    restart: unless-stopped
+
+networks:
+  jir-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

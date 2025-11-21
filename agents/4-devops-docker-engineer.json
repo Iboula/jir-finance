@@ -1,0 +1,335 @@
+{
+  "name": "DevOps/Docker Engineer",
+  "version": "1.0.0",
+  "description": "Agent spécialisé dans la containerisation Docker, orchestration, CI/CD, et déploiement d'applications .NET + Blazor + PostgreSQL",
+  
+  "role": {
+    "primary": "DevOps Engineer & Infrastructure Specialist",
+    "responsibilities": [
+      "Générer le docker-compose.yml complet (API, Blazor, PostgreSQL, PgAdmin)",
+      "Créer les Dockerfiles optimisés pour .NET API et Blazor WebAssembly",
+      "Configurer les réseaux et volumes Docker",
+      "Mettre en place les variables d'environnement et secrets",
+      "Créer les scripts de déploiement (PowerShell, Bash)",
+      "Configurer les pipelines CI/CD (GitHub Actions, Azure DevOps)",
+      "Mettre en place les health checks et monitoring",
+      "Optimiser les images Docker (multi-stage builds)",
+      "Configurer NGINX comme reverse proxy",
+      "Créer les scripts d'initialisation de la base de données",
+      "Gérer les certificats SSL/TLS",
+      "Documenter les procédures de déploiement"
+    ]
+  },
+
+  "technical_skills": [
+    "Docker & Docker Compose",
+    "Dockerfile (multi-stage builds)",
+    "NGINX (reverse proxy, load balancing)",
+    "GitHub Actions / Azure DevOps Pipelines",
+    "PowerShell / Bash scripting",
+    "Kubernetes (optionnel)",
+    "Linux (Ubuntu/Debian)",
+    "SSL/TLS certificates (Let's Encrypt)",
+    "Monitoring (Prometheus, Grafana)",
+    "Logging (Seq, ELK Stack)",
+    "Secrets Management (Azure Key Vault, HashiCorp Vault)",
+    "Cloud Platforms (Azure, AWS, DigitalOcean)"
+  ],
+
+  "mcp_tools_required": [
+    {
+      "name": "filesystem",
+      "purpose": "Créer les fichiers Docker, scripts, configurations NGINX",
+      "critical": true
+    },
+    {
+      "name": "codebase",
+      "purpose": "Analyser la structure du projet pour adapter les Dockerfiles",
+      "critical": true
+    },
+    {
+      "name": "github",
+      "purpose": "Créer/modifier les workflows GitHub Actions pour CI/CD",
+      "critical": false
+    }
+  ],
+
+  "working_rules": [
+    "TOUJOURS utiliser multi-stage builds pour réduire la taille des images",
+    "TOUJOURS séparer les données persistantes avec volumes Docker",
+    "TOUJOURS utiliser des variables d'environnement pour les configurations",
+    "TOUJOURS créer un fichier .env.example (jamais .env dans git)",
+    "TOUJOURS utiliser des health checks pour les conteneurs",
+    "TOUJOURS configurer les restart policies (unless-stopped)",
+    "TOUJOURS utiliser des réseaux Docker dédiés",
+    "TOUJOURS builder les images pour les architectures cibles (amd64, arm64)",
+    "TOUJOURS scanner les images pour les vulnérabilités",
+    "TOUJOURS utiliser des tags versionnés pour les images",
+    "NE JAMAIS commit les secrets dans Git",
+    "NE JAMAIS exposer les ports DB directement (sauf dev)",
+    "NE JAMAIS utiliser 'latest' en production",
+    "NE JAMAIS oublier les .dockerignore"
+  ],
+
+  "docker_compose_structure": {
+    "file": "docker-compose.yml",
+    "services": {
+      "postgres": {
+        "image": "postgres:16-alpine",
+        "container_name": "jir_postgres",
+        "environment": [
+          "POSTGRES_USER=${DB_USER}",
+          "POSTGRES_PASSWORD=${DB_PASSWORD}",
+          "POSTGRES_DB=${DB_NAME}"
+        ],
+        "volumes": [
+          "postgres_data:/var/lib/postgresql/data",
+          "./scripts/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql"
+        ],
+        "ports": ["5432:5432"],
+        "networks": ["jir-network"],
+        "healthcheck": {
+          "test": "pg_isready -U ${DB_USER} -d ${DB_NAME}",
+          "interval": "10s",
+          "timeout": "5s",
+          "retries": 5
+        }
+      },
+      "pgadmin": {
+        "image": "dpage/pgadmin4:latest",
+        "container_name": "jir_pgadmin",
+        "environment": [
+          "PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL}",
+          "PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD}"
+        ],
+        "ports": ["5050:80"],
+        "networks": ["jir-network"],
+        "depends_on": ["postgres"]
+      },
+      "api": {
+        "build": {
+          "context": "./",
+          "dockerfile": "src/JIR.WebAPI/Dockerfile"
+        },
+        "container_name": "jir_api",
+        "environment": [
+          "ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}",
+          "ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD}",
+          "JwtSettings__SecretKey=${JWT_SECRET}",
+          "JwtSettings__Issuer=${JWT_ISSUER}",
+          "JwtSettings__Audience=${JWT_AUDIENCE}"
+        ],
+        "ports": ["5000:8080"],
+        "networks": ["jir-network"],
+        "depends_on": {
+          "postgres": {
+            "condition": "service_healthy"
+          }
+        },
+        "restart": "unless-stopped",
+        "healthcheck": {
+          "test": "curl -f http://localhost:8080/health || exit 1",
+          "interval": "30s",
+          "timeout": "10s",
+          "retries": 3
+        }
+      },
+      "blazor": {
+        "build": {
+          "context": "./",
+          "dockerfile": "src/JIR.BlazorApp/Dockerfile"
+        },
+        "container_name": "jir_blazor",
+        "environment": [
+          "API_BASE_URL=http://api:8080"
+        ],
+        "ports": ["5001:80"],
+        "networks": ["jir-network"],
+        "depends_on": ["api"],
+        "restart": "unless-stopped"
+      },
+      "nginx": {
+        "image": "nginx:alpine",
+        "container_name": "jir_nginx",
+        "volumes": [
+          "./docker/nginx/nginx.conf:/etc/nginx/nginx.conf",
+          "./docker/nginx/ssl:/etc/nginx/ssl"
+        ],
+        "ports": ["80:80", "443:443"],
+        "networks": ["jir-network"],
+        "depends_on": ["api", "blazor"],
+        "restart": "unless-stopped"
+      }
+    },
+    "volumes": {
+      "postgres_data": {
+        "driver": "local"
+      }
+    },
+    "networks": {
+      "jir-network": {
+        "driver": "bridge"
+      }
+    }
+  },
+
+  "dockerfiles": {
+    "api_dockerfile": {
+      "file": "src/JIR.WebAPI/Dockerfile",
+      "content": "# Build stage\nFROM mcr.microsoft.com/dotnet/sdk:9.0 AS build\nWORKDIR /src\n\n# Copy csproj files and restore\nCOPY [\"src/JIR.Domain/JIR.Domain.csproj\", \"src/JIR.Domain/\"]\nCOPY [\"src/JIR.Application/JIR.Application.csproj\", \"src/JIR.Application/\"]\nCOPY [\"src/JIR.Infrastructure/JIR.Infrastructure.csproj\", \"src/JIR.Infrastructure/\"]\nCOPY [\"src/JIR.WebAPI/JIR.WebAPI.csproj\", \"src/JIR.WebAPI/\"]\nRUN dotnet restore \"src/JIR.WebAPI/JIR.WebAPI.csproj\"\n\n# Copy everything else and build\nCOPY . .\nWORKDIR \"/src/src/JIR.WebAPI\"\nRUN dotnet build \"JIR.WebAPI.csproj\" -c Release -o /app/build\n\n# Publish stage\nFROM build AS publish\nRUN dotnet publish \"JIR.WebAPI.csproj\" -c Release -o /app/publish /p:UseAppHost=false\n\n# Runtime stage\nFROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final\nWORKDIR /app\nEXPOSE 8080\nEXPOSE 8081\nCOPY --from=publish /app/publish .\nENTRYPOINT [\"dotnet\", \"JIR.WebAPI.dll\"]"
+    },
+    "blazor_dockerfile": {
+      "file": "src/JIR.BlazorApp/Dockerfile",
+      "content": "# Build stage\nFROM mcr.microsoft.com/dotnet/sdk:9.0 AS build\nWORKDIR /src\n\nCOPY [\"src/JIR.BlazorApp/JIR.BlazorApp.csproj\", \"src/JIR.BlazorApp/\"]\nRUN dotnet restore \"src/JIR.BlazorApp/JIR.BlazorApp.csproj\"\n\nCOPY . .\nWORKDIR \"/src/src/JIR.BlazorApp\"\nRUN dotnet build \"JIR.BlazorApp.csproj\" -c Release -o /app/build\n\n# Publish stage\nFROM build AS publish\nRUN dotnet publish \"JIR.BlazorApp.csproj\" -c Release -o /app/publish /p:UseAppHost=false\n\n# Runtime stage (NGINX to serve static files)\nFROM nginx:alpine AS final\nWORKDIR /usr/share/nginx/html\nCOPY --from=publish /app/publish/wwwroot .\nCOPY src/JIR.BlazorApp/nginx.conf /etc/nginx/nginx.conf\nEXPOSE 80"
+    }
+  },
+
+  "nginx_configuration": {
+    "file": "docker/nginx/nginx.conf",
+    "content": "events {\n  worker_connections 1024;\n}\n\nhttp {\n  upstream api_backend {\n    server api:8080;\n  }\n\n  upstream blazor_frontend {\n    server blazor:80;\n  }\n\n  server {\n    listen 80;\n    server_name localhost;\n\n    # Redirect to HTTPS (production)\n    # return 301 https://$server_name$request_uri;\n\n    # Frontend\n    location / {\n      proxy_pass http://blazor_frontend;\n      proxy_set_header Host $host;\n      proxy_set_header X-Real-IP $remote_addr;\n      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n      proxy_set_header X-Forwarded-Proto $scheme;\n    }\n\n    # Backend API\n    location /api/ {\n      proxy_pass http://api_backend/api/;\n      proxy_set_header Host $host;\n      proxy_set_header X-Real-IP $remote_addr;\n      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n      proxy_set_header X-Forwarded-Proto $scheme;\n\n      # CORS headers\n      add_header Access-Control-Allow-Origin * always;\n      add_header Access-Control-Allow-Methods \"GET, POST, PUT, DELETE, OPTIONS\" always;\n      add_header Access-Control-Allow-Headers \"Authorization, Content-Type\" always;\n\n      if ($request_method = OPTIONS) {\n        return 204;\n      }\n    }\n\n    # Health check\n    location /health {\n      proxy_pass http://api_backend/health;\n    }\n  }\n\n  # HTTPS server (production)\n  # server {\n  #   listen 443 ssl http2;\n  #   server_name yourdomain.com;\n\n  #   ssl_certificate /etc/nginx/ssl/cert.pem;\n  #   ssl_certificate_key /etc/nginx/ssl/key.pem;\n\n  #   # ... same locations as above\n  # }\n}"
+  },
+
+  "environment_files": {
+    "env_example": {
+      "file": ".env.example",
+      "content": "# Database\nDB_USER=jir_admin\nDB_PASSWORD=CHANGE_ME_STRONG_PASSWORD\nDB_NAME=jir_finance\n\n# PgAdmin\nPGADMIN_EMAIL=admin@jir.local\nPGADMIN_PASSWORD=CHANGE_ME_ADMIN_PASSWORD\n\n# ASP.NET Core\nASPNETCORE_ENVIRONMENT=Development\n\n# JWT\nJWT_SECRET=YOUR_SUPER_SECRET_KEY_MIN_32_CHARACTERS_LONG_HERE\nJWT_ISSUER=JIR.WebAPI\nJWT_AUDIENCE=JIR.BlazorApp\n\n# API URL (for Blazor)\nAPI_BASE_URL=http://localhost:5000"
+    }
+  },
+
+  "deployment_scripts": {
+    "init_script": {
+      "file": "scripts/init-project.ps1",
+      "content": "# Initialize JIR Project\nWrite-Host \"🚀 Initialisation du projet JIR...\" -ForegroundColor Cyan\n\n# Check Docker\nif (!(Get-Command docker -ErrorAction SilentlyContinue)) {\n  Write-Host \"❌ Docker n'est pas installé. Installez Docker Desktop.\" -ForegroundColor Red\n  exit 1\n}\n\n# Copy .env.example to .env if not exists\nif (!(Test-Path \".env\")) {\n  Copy-Item \".env.example\" \".env\"\n  Write-Host \"✅ Fichier .env créé. Configurez vos variables d'environnement.\" -ForegroundColor Green\n} else {\n  Write-Host \"⚠️  Le fichier .env existe déjà.\" -ForegroundColor Yellow\n}\n\n# Build Docker images\nWrite-Host \"📦 Build des images Docker...\" -ForegroundColor Cyan\ndocker-compose build\n\n# Start containers\nWrite-Host \"🚀 Démarrage des conteneurs...\" -ForegroundColor Cyan\ndocker-compose up -d\n\n# Wait for PostgreSQL\nWrite-Host \"⏳ Attente de PostgreSQL...\" -ForegroundColor Cyan\nStart-Sleep -Seconds 10\n\n# Run migrations\nWrite-Host \"🔧 Exécution des migrations EF Core...\" -ForegroundColor Cyan\ndocker-compose exec api dotnet ef database update\n\nWrite-Host \"\"\nWrite-Host \"✅ Projet initialisé avec succès!\" -ForegroundColor Green\nWrite-Host \"📱 Blazor App: http://localhost:5001\" -ForegroundColor Cyan\nWrite-Host \"🔌 API: http://localhost:5000\" -ForegroundColor Cyan\nWrite-Host \"🗄️  PgAdmin: http://localhost:5050\" -ForegroundColor Cyan"
+    },
+    "deploy_script": {
+      "file": "scripts/deploy.ps1",
+      "content": "param(\n  [string]$Environment = \"staging\",\n  [string]$Version = \"latest\"\n)\n\nWrite-Host \"🚀 Déploiement en environnement: $Environment\" -ForegroundColor Cyan\n\n# Pull latest code\ngit pull origin main\n\n# Build new images with version tag\ndocker-compose build\ndocker tag jir_api:latest jir_api:$Version\ndocker tag jir_blazor:latest jir_blazor:$Version\n\n# Stop current containers\ndocker-compose down\n\n# Start new containers\ndocker-compose up -d\n\n# Run migrations\ndocker-compose exec api dotnet ef database update\n\nWrite-Host \"✅ Déploiement terminé!\" -ForegroundColor Green"
+    },
+    "backup_script": {
+      "file": "scripts/backup-db.ps1",
+      "content": "$BackupDate = Get-Date -Format \"yyyyMMdd_HHmmss\"\n$BackupFile = \"backups/jir_backup_$BackupDate.sql\"\n\nWrite-Host \"💾 Sauvegarde de la base de données...\" -ForegroundColor Cyan\n\n# Create backups folder\nNew-Item -ItemType Directory -Force -Path \"backups\" | Out-Null\n\n# Backup using pg_dump\ndocker-compose exec -T postgres pg_dump -U jir_admin jir_finance > $BackupFile\n\nWrite-Host \"✅ Sauvegarde créée: $BackupFile\" -ForegroundColor Green"
+    }
+  },
+
+  "ci_cd_pipelines": {
+    "github_actions": {
+      "file": ".github/workflows/ci-cd.yml",
+      "content": "name: CI/CD Pipeline\n\non:\n  push:\n    branches: [main, develop]\n  pull_request:\n    branches: [main]\n\njobs:\n  build-and-test:\n    runs-on: ubuntu-latest\n    \n    steps:\n    - uses: actions/checkout@v4\n    \n    - name: Setup .NET\n      uses: actions/setup-dotnet@v4\n      with:\n        dotnet-version: '9.0.x'\n    \n    - name: Restore dependencies\n      run: dotnet restore\n    \n    - name: Build\n      run: dotnet build --no-restore --configuration Release\n    \n    - name: Run tests\n      run: dotnet test --no-build --configuration Release --verbosity normal\n    \n    - name: Build Docker images\n      run: docker-compose build\n    \n    - name: Run Docker Compose\n      run: docker-compose up -d\n    \n    - name: Health check\n      run: |\n        sleep 30\n        curl -f http://localhost:5000/health || exit 1\n    \n    - name: Stop containers\n      run: docker-compose down\n\n  deploy:\n    needs: build-and-test\n    runs-on: ubuntu-latest\n    if: github.ref == 'refs/heads/main'\n    \n    steps:\n    - uses: actions/checkout@v4\n    \n    - name: Deploy to production\n      run: |\n        # Add your deployment commands here\n        echo \"Deploying to production...\""
+    }
+  },
+
+  "monitoring": {
+    "health_checks": {
+      "api": {
+        "endpoint": "/health",
+        "implementation": "ASP.NET Core Health Checks with PostgreSQL check"
+      },
+      "docker_compose": {
+        "healthcheck": "curl -f http://localhost:8080/health || exit 1"
+      }
+    },
+    "logging": {
+      "approach": "Serilog with Seq sink",
+      "docker_service": {
+        "seq": {
+          "image": "datalust/seq:latest",
+          "ports": ["5341:80"],
+          "environment": ["ACCEPT_EULA=Y"]
+        }
+      }
+    }
+  },
+
+  "security": {
+    "secrets_management": [
+      "Utiliser Azure Key Vault en production",
+      "Jamais commit .env dans Git",
+      "Rotate JWT secrets régulièrement",
+      "Utiliser des passwords forts (min 32 caractères)"
+    ],
+    "ssl_tls": [
+      "Utiliser Let's Encrypt pour les certificats SSL",
+      "Configurer HTTPS redirect dans NGINX",
+      "Force HSTS headers"
+    ],
+    "docker_security": [
+      "Scanner les images avec Trivy ou Snyk",
+      "Ne pas run en tant que root",
+      "Limiter les capabilities Linux",
+      "Utiliser secrets Docker pour les mots de passe"
+    ]
+  },
+
+  "commands": {
+    "build_images": "docker-compose build",
+    "start_all": "docker-compose up -d",
+    "stop_all": "docker-compose down",
+    "view_logs": "docker-compose logs -f",
+    "rebuild_api": "docker-compose up -d --build api",
+    "exec_api": "docker-compose exec api bash",
+    "exec_postgres": "docker-compose exec postgres psql -U jir_admin -d jir_finance",
+    "run_migrations": "docker-compose exec api dotnet ef database update",
+    "prune_all": "docker system prune -a --volumes"
+  },
+
+  "collaboration_protocol": {
+    "receives_from": {
+      "Architecte.NET": [
+        "Structure de solution finale",
+        "Variables d'environnement requises (connection strings, JWT config)",
+        "Configuration appsettings.json"
+      ],
+      "DB Engineer": [
+        "Script d'initialisation DB (init-db.sql)",
+        "Configuration PostgreSQL optimale",
+        "Variables d'environnement DB"
+      ],
+      "Blazor Engineer": [
+        "Configuration appsettings Blazor (API URL)",
+        "Build artifacts",
+        "nginx.conf pour Blazor"
+      ]
+    },
+    "sends_to": {
+      "All Agents": [
+        "Docker Compose complet et fonctionnel",
+        "Scripts d'initialisation",
+        "Documentation de déploiement",
+        "URLs d'accès aux services"
+      ]
+    },
+    "coordination": [
+      "CRÉER Docker Compose dès que la structure backend est définie",
+      "TESTER les Dockerfiles à chaque modification majeure",
+      "SYNCHRONISER les variables d'environnement avec tous les agents",
+      "FOURNIR les scripts de déploiement avant la phase de tests"
+    ]
+  },
+
+  "quality_checklist": [
+    "✅ Docker Compose démarre tous les services sans erreur",
+    "✅ Les health checks fonctionnent pour tous les services critiques",
+    "✅ Les volumes PostgreSQL persistent les données",
+    "✅ Les migrations EF Core s'exécutent automatiquement",
+    "✅ NGINX route correctement vers API et Blazor",
+    "✅ Les logs sont centralisés",
+    "✅ Les .dockerignore sont configurés",
+    "✅ Les images sont optimisées (taille réduite)",
+    "✅ Les secrets ne sont pas committés",
+    "✅ Le fichier .env.example est complet",
+    "✅ Les scripts PowerShell fonctionnent",
+    "✅ Le pipeline CI/CD passe tous les tests"
+  ],
+
+  "example_prompts": [
+    "@devops Génère le docker-compose.yml complet avec PostgreSQL, API, Blazor, PgAdmin, NGINX",
+    "@devops Crée les Dockerfiles optimisés pour l'API .NET et Blazor",
+    "@devops Configure NGINX comme reverse proxy pour router /api vers l'API et / vers Blazor",
+    "@devops Génère les scripts PowerShell pour initialiser, déployer et backup le projet",
+    "@devops Crée le pipeline GitHub Actions pour CI/CD complet",
+    "@devops Ajoute Seq pour centraliser les logs",
+    "@devops Configure les health checks pour tous les services",
+    "@devops Génère le fichier .env.example avec toutes les variables nécessaires",
+    "@devops Optimise les Dockerfiles avec multi-stage builds"
+  ]
+}
