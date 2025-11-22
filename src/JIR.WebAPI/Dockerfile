@@ -21,8 +21,8 @@ RUN dotnet publish "JIR.WebAPI.csproj" -c Release -o /app/publish /p:UseAppHost=
 # Stage 3: Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
+# Expose only the app port
 EXPOSE 8080
-EXPOSE 8081
 
 # Copier les fichiers publiés depuis l'étape publish
 COPY --from=publish /app/publish .

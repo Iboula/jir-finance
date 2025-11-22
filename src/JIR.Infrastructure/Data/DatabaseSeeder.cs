@@ -20,14 +20,14 @@ public static class DatabaseSeeder
         // 1. Créer des sections
         var sections = new List<Section>
         {
-            new Section { Nom = "Direction", Description = "Direction générale et administration" },
-            new Section { Nom = "Comptabilité", Description = "Gestion financière et comptable" },
-            new Section { Nom = "Ressources Humaines", Description = "Gestion du personnel" },
-            new Section { Nom = "Ventes", Description = "Équipe commerciale" },
-            new Section { Nom = "Marketing", Description = "Promotion et communication" },
-            new Section { Nom = "Logistique", Description = "Gestion des stocks et livraisons" },
-            new Section { Nom = "IT", Description = "Support informatique" },
-            new Section { Nom = "Service Client", Description = "Support et satisfaction client" }
+            new Section { Code = "DIR", Nom = "Direction", Description = "Direction générale et administration" },
+            new Section { Code = "COMPTA", Nom = "Comptabilité", Description = "Gestion financière et comptable" },
+            new Section { Code = "RH", Nom = "Ressources Humaines", Description = "Gestion du personnel" },
+            new Section { Code = "VENTES", Nom = "Ventes", Description = "Équipe commerciale" },
+            new Section { Code = "MARKET", Nom = "Marketing", Description = "Promotion et communication" },
+            new Section { Code = "LOG", Nom = "Logistique", Description = "Gestion des stocks et livraisons" },
+            new Section { Code = "IT", Nom = "IT", Description = "Support informatique" },
+            new Section { Code = "CLIENT", Nom = "Service Client", Description = "Support et satisfaction client" }
         };
         await context.Sections.AddRangeAsync(sections);
         await context.SaveChangesAsync();

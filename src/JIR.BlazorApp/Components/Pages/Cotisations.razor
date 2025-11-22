@@ -1,0 +1,506 @@
+@page "/cotisations"
+@rendermode InteractiveServer
+@using JIR.BlazorApp.Models
+@using JIR.BlazorApp.Services
+@inject CotisationService CotisationService
+@inject SectionService SectionService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Gestion des Cotisations</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="mb-0">
+                    <i class="bi bi-cash-coin me-2"></i>
+                    Cotisations
+                </h2>
+                <button type="button" class="btn btn-primary" @onclick="OpenCreateModal">
+                    <i class="bi bi-plus-circle me-2"></i>
+                    Nouvelle Cotisation
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Section</label>
+                    <select class="form-select" @onchange="OnSectionFilterChanged">
+                        <option value="">Toutes les sections</option>
+                        @foreach (var sect in sections)
+                        {
+                            <option value="@sect.Id">@sect.Nom</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Période</label>
+                    <input type="text" class="form-control" placeholder="YYYY-MM" @bind="filterPeriode" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Date début</label>
+                    <input type="date" class="form-control" @bind="filterDateDebut" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Date fin</label>
+                    <input type="date" class="form-control" @bind="filterDateFin" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-primary flex-fill" @onclick="LoadCotisations">
+                            <i class="bi bi-search me-2"></i>Rechercher
+                        </button>
+                        <button type="button" class="btn btn-secondary" @onclick="ClearFilters">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (loading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Chargement...</span>
+            </div>
+        </div>
+    }
+    else if (errorMessage != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+    else
+    {
+        <!-- Statistiques -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-bg-primary">
+                    <div class="card-body">
+                        <h6 class="card-title">Total Cotisations</h6>
+                        <h3 class="mb-0">@cotisations.Count</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-bg-success">
+                    <div class="card-body">
+                        <h6 class="card-title">Montant Total</h6>
+                        <h3 class="mb-0">@cotisations.Sum(c => c.Montant).ToString("N0") FCFA</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-bg-info">
+                    <div class="card-body">
+                        <h6 class="card-title">Ce Mois</h6>
+                        <h3 class="mb-0">@cotisations.Count(c => c.DatePaiement.Month == DateTime.Now.Month && c.DatePaiement.Year == DateTime.Now.Year)</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-bg-warning">
+                    <div class="card-body">
+                        <h6 class="card-title">Validées</h6>
+                        <h3 class="mb-0">@cotisations.Count(c => c.Statut == "Validé")</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Période</th>
+                                <th>Membre</th>
+                                <th>Matricule</th>
+                                <th>Section</th>
+                                <th>Montant</th>
+                                <th>Date Paiement</th>
+                                <th>Mode</th>
+                                <th>Reçu</th>
+                                <th>Statut</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (cotisations.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="10" class="text-center text-muted py-4">
+                                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                        Aucune cotisation trouvée
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var cotisation in cotisations)
+                                {
+                                    <tr>
+                                        <td>
+                                            <strong>@cotisation.Periode</strong>
+                                        </td>
+                                        <td>@cotisation.MembreNom</td>
+                                        <td>
+                                            <span class="badge bg-secondary">@cotisation.MembreMatricule</span>
+                                        </td>
+                                        <td>@cotisation.SectionNom</td>
+                                        <td>
+                                            <strong class="text-success">@cotisation.Montant.ToString("N0") FCFA</strong>
+                                        </td>
+                                        <td>@cotisation.DatePaiement.ToString("dd/MM/yyyy")</td>
+                                        <td>
+                                            <span class="badge bg-info">@cotisation.ModePaiement</span>
+                                        </td>
+                                        <td>@(cotisation.RecuNumero ?? "-")</td>
+                                        <td>
+                                            @if (cotisation.Statut == "Validé")
+                                            {
+                                                <span class="badge bg-success">
+                                                    <i class="bi bi-check-circle me-1"></i>@cotisation.Statut
+                                                </span>
+                                            }
+                                            else if (cotisation.Statut == "En attente")
+                                            {
+                                                <span class="badge bg-warning">
+                                                    <i class="bi bi-clock me-1"></i>@cotisation.Statut
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-danger">
+                                                    <i class="bi bi-x-circle me-1"></i>@cotisation.Statut
+                                                </span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <button type="button" class="btn btn-outline-primary" @onclick="() => OpenEditModal(cotisation.Id)" title="Modifier">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-outline-danger" @onclick="() => DeleteCotisation(cotisation.Id)" title="Supprimer">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Modal Create/Edit -->
+@if (showModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        @(editingId == null ? "Nouvelle Cotisation" : "Modifier Cotisation")
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="@formModel" OnValidSubmit="SaveCotisation">
+                        <DataAnnotationsValidator />
+                        
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Section *</label>
+                                <InputSelect class="form-select" @bind-Value="formModel.SectionId">
+                                    <option value="">-- Sélectionner --</option>
+                                    @foreach (var sect in sections)
+                                    {
+                                        <option value="@sect.Id">@sect.Nom</option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="@(() => formModel.SectionId)" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Période (YYYY-MM) *</label>
+                                <InputText type="month" class="form-control" @bind-Value="formModel.Periode" />
+                                <ValidationMessage For="@(() => formModel.Periode)" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Nom du Membre *</label>
+                                <InputText class="form-control" @bind-Value="formModel.MembreNom" />
+                                <ValidationMessage For="@(() => formModel.MembreNom)" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Matricule *</label>
+                                <InputText class="form-control" @bind-Value="formModel.MembreMatricule" />
+                                <ValidationMessage For="@(() => formModel.MembreMatricule)" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Montant (FCFA) *</label>
+                                <InputNumber class="form-control" @bind-Value="formModel.Montant" />
+                                <ValidationMessage For="@(() => formModel.Montant)" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Date de Paiement *</label>
+                                <InputDate class="form-control" @bind-Value="formModel.DatePaiement" />
+                                <ValidationMessage For="@(() => formModel.DatePaiement)" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Mode de Paiement *</label>
+                                <InputSelect class="form-select" @bind-Value="formModel.ModePaiement">
+                                    <option value="Espèces">Espèces</option>
+                                    <option value="Chèque">Chèque</option>
+                                    <option value="Virement">Virement</option>
+                                    <option value="Mobile Money">Mobile Money</option>
+                                </InputSelect>
+                                <ValidationMessage For="@(() => formModel.ModePaiement)" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Numéro de Reçu</label>
+                                <InputText class="form-control" @bind-Value="formModel.RecuNumero" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Statut *</label>
+                                <InputSelect class="form-select" @bind-Value="formModel.Statut">
+                                    <option value="En attente">En attente</option>
+                                    <option value="Validé">Validé</option>
+                                    <option value="Rejeté">Rejeté</option>
+                                </InputSelect>
+                                <ValidationMessage For="@(() => formModel.Statut)" />
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label">Observations</label>
+                                <InputTextArea class="form-control" rows="3" @bind-Value="formModel.Observations" />
+                            </div>
+                        </div>
+
+                        <div class="mt-4 d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseModal">
+                                Annuler
+                            </button>
+                            <button type="submit" class="btn btn-primary" disabled="@saving">
+                                @if (saving)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                <i class="bi bi-save me-2"></i>
+                                Enregistrer
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<CotisationDto> cotisations = new();
+    private List<SectionDto> sections = new();
+    private bool loading = true;
+    private string? errorMessage;
+    private bool showModal = false;
+    private bool saving = false;
+    private Guid? editingId = null;
+    private CreateCotisationDto formModel = new();
+
+    // Filtres
+    private Guid? filterSectionId;
+    private string? filterPeriode;
+    private DateTime? filterDateDebut;
+    private DateTime? filterDateFin;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSections();
+        await LoadCotisations();
+    }
+
+    private async Task LoadSections()
+    {
+        try
+        {
+            sections = await SectionService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur lors du chargement des sections: {ex.Message}";
+        }
+    }
+
+    private async Task LoadCotisations()
+    {
+        try
+        {
+            loading = true;
+            errorMessage = null;
+
+            cotisations = await CotisationService.GetAllAsync(
+                sectionId: filterSectionId,
+                periode: filterPeriode,
+                datePaiementDebut: filterDateDebut,
+                datePaiementFin: filterDateFin
+            );
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur lors du chargement des cotisations: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void OnSectionFilterChanged(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString();
+        filterSectionId = string.IsNullOrEmpty(value) ? null : Guid.Parse(value);
+    }
+
+    private void ClearFilters()
+    {
+        filterSectionId = null;
+        filterPeriode = null;
+        filterDateDebut = null;
+        filterDateFin = null;
+    }
+
+    private void OpenCreateModal()
+    {
+        editingId = null;
+        formModel = new CreateCotisationDto
+        {
+            DatePaiement = DateTime.Now,
+            ModePaiement = "Espèces",
+            Statut = "Validé"
+        };
+        showModal = true;
+    }
+
+    private async Task OpenEditModal(Guid id)
+    {
+        try
+        {
+            var cotisation = await CotisationService.GetByIdAsync(id);
+            if (cotisation != null)
+            {
+                editingId = id;
+                formModel = new CreateCotisationDto
+                {
+                    SectionId = cotisation.SectionId,
+                    MembreNom = cotisation.MembreNom,
+                    MembreMatricule = cotisation.MembreMatricule,
+                    Montant = cotisation.Montant,
+                    Periode = cotisation.Periode,
+                    DatePaiement = cotisation.DatePaiement,
+                    ModePaiement = cotisation.ModePaiement,
+                    RecuNumero = cotisation.RecuNumero,
+                    Statut = cotisation.Statut,
+                    Observations = cotisation.Observations
+                };
+                showModal = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur lors du chargement de la cotisation: {ex.Message}";
+        }
+    }
+
+    private async Task SaveCotisation()
+    {
+        try
+        {
+            saving = true;
+            errorMessage = null;
+
+            if (editingId == null)
+            {
+                await CotisationService.CreateAsync(formModel);
+            }
+            else
+            {
+                var updateDto = new UpdateCotisationDto
+                {
+                    Id = editingId.Value,
+                    SectionId = formModel.SectionId,
+                    MembreNom = formModel.MembreNom,
+                    MembreMatricule = formModel.MembreMatricule,
+                    Montant = formModel.Montant,
+                    Periode = formModel.Periode,
+                    DatePaiement = formModel.DatePaiement,
+                    ModePaiement = formModel.ModePaiement,
+                    RecuNumero = formModel.RecuNumero,
+                    Statut = formModel.Statut,
+                    Observations = formModel.Observations
+                };
+                await CotisationService.UpdateAsync(editingId.Value, updateDto);
+            }
+
+            CloseModal();
+            await LoadCotisations();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur lors de l'enregistrement: {ex.Message}";
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    private async Task DeleteCotisation(Guid id)
+    {
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", 
+            "Êtes-vous sûr de vouloir supprimer cette cotisation ?");
+        
+        if (confirmed)
+        {
+            try
+            {
+                await CotisationService.DeleteAsync(id);
+                await LoadCotisations();
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Erreur lors de la suppression: {ex.Message}";
+            }
+        }
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        editingId = null;
+    }
+}
