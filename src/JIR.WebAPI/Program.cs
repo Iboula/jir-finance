@@ -6,6 +6,12 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure Kestrel to listen on port 8080
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    serverOptions.ListenAnyIP(8080);
+});
+
 // Add services to the container
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -74,7 +80,8 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-app.UseHttpsRedirection();
+// Don't use HTTPS redirection in container (Azure Container Apps handles HTTPS)
+// app.UseHttpsRedirection();
 app.UseCors("AllowBlazor");
 
 // app.UseAuthentication();
