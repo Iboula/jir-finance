@@ -1,0 +1,50 @@
+{
+  "deployment": {
+    "resourceGroup": "rg-jir-finance",
+    "location": "canadacentral",
+    "environment": "jir-finance-env"
+  },
+  "containerRegistry": {
+    "name": "rejirfinance",
+    "loginServer": "rejirfinance.azurecr.io"
+  },
+  "images": {
+    "api": "rejirfinance.azurecr.io/jir-api:latest",
+    "blazor": "rejirfinance.azurecr.io/jir-blazor:latest",
+    "postgres": "postgres:16-alpine"
+  },
+  "containerApps": {
+    "postgres": {
+      "name": "jir-postgres",
+      "cpu": 0.5,
+      "memory": "1Gi",
+      "minReplicas": 1,
+      "maxReplicas": 1,
+      "targetPort": 5432,
+      "ingress": "internal"
+    },
+    "api": {
+      "name": "jir-api",
+      "cpu": 0.5,
+      "memory": "1Gi",
+      "minReplicas": 1,
+      "maxReplicas": 3,
+      "targetPort": 8080,
+      "ingress": "external"
+    },
+    "blazor": {
+      "name": "jir-blazor",
+      "cpu": 0.5,
+      "memory": "1Gi",
+      "minReplicas": 1,
+      "maxReplicas": 3,
+      "targetPort": 8080,
+      "ingress": "external"
+    }
+  },
+  "database": {
+    "name": "jir_db",
+    "user": "jir_user",
+    "password": "jir_password"
+  }
+}

@@ -10,8 +10,6 @@ ENV DOTNET_NOLOGO=1
 
 # Copier les fichiers de projet et restaurer les dépendances
 COPY ["JIR.BlazorApp/JIR.BlazorApp.csproj", "JIR.BlazorApp/"]
-COPY ["JIR.BlazorApp/Models/", "JIR.BlazorApp/Models/"]
-COPY ["JIR.BlazorApp/Services/", "JIR.BlazorApp/Services/"]
 RUN dotnet restore "JIR.BlazorApp/JIR.BlazorApp.csproj" --disable-parallel
 
 # Copier tout le code source et compiler
