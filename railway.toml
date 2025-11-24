@@ -1,8 +1,0 @@
-[build]
-builder = "DOCKERFILE"
-dockerfilePath = "src/JIR.WebAPI/Dockerfile"
-
-[deploy]
-startCommand = "dotnet JIR.WebAPI.dll"
-restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 10
