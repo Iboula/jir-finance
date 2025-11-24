@@ -3,14 +3,14 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
 # Copier les fichiers de projet et restaurer les dépendances
-COPY ["JIR.WebAPI/JIR.WebAPI.csproj", "JIR.WebAPI/"]
-COPY ["JIR.Application/JIR.Application.csproj", "JIR.Application/"]
-COPY ["JIR.Domain/JIR.Domain.csproj", "JIR.Domain/"]
-COPY ["JIR.Infrastructure/JIR.Infrastructure.csproj", "JIR.Infrastructure/"]
+COPY ["src/JIR.WebAPI/JIR.WebAPI.csproj", "JIR.WebAPI/"]
+COPY ["src/JIR.Application/JIR.Application.csproj", "JIR.Application/"]
+COPY ["src/JIR.Domain/JIR.Domain.csproj", "JIR.Domain/"]
+COPY ["src/JIR.Infrastructure/JIR.Infrastructure.csproj", "JIR.Infrastructure/"]
 RUN dotnet restore "JIR.WebAPI/JIR.WebAPI.csproj"
 
 # Copier tout le code source et compiler
-COPY . .
+COPY src/ .
 WORKDIR "/src/JIR.WebAPI"
 RUN dotnet build "JIR.WebAPI.csproj" -c Release -o /app/build
 
