@@ -22,13 +22,12 @@ Write-Host "🚀 Déploiement de JIR Finance sur Azure Container Apps" -Foregrou
 Write-Host ""
 
 # Vérifier si Azure CLI est installé
-try {
-    az --version | Out-Null
-    Write-Host "✓ Azure CLI détecté" -ForegroundColor Green
-} catch {
+$azVersion = Get-Command az -ErrorAction SilentlyContinue
+if (-not $azVersion) {
     Write-Host "✗ Azure CLI n'est pas installé. Installez-le depuis: https://aka.ms/installazurecliwindows" -ForegroundColor Red
     exit 1
 }
+Write-Host "✓ Azure CLI détecté" -ForegroundColor Green
 
 # Vérifier la connexion Azure
 Write-Host "Vérification de la connexion Azure..." -ForegroundColor Yellow

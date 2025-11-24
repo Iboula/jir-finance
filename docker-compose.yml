@@ -6,9 +6,9 @@ services:
     image: postgres:16-alpine
     container_name: jir-postgres
     environment:
-      POSTGRES_USER: jir_user
-      POSTGRES_PASSWORD: jir_password
-      POSTGRES_DB: jir_db
+      POSTGRES_USER: ${POSTGRES_USER:-jir_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jir_password}
+      POSTGRES_DB: ${POSTGRES_DB:-jir_db}
     ports:
       - "5432:5432"
     volumes:
@@ -16,7 +16,7 @@ services:
     networks:
       - jir-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U jir_user -d jir_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-jir_user} -d ${POSTGRES_DB:-jir_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -24,15 +24,15 @@ services:
   # API Backend
   api:
     build:
-      context: ./src
-      dockerfile: JIR.WebAPI/Dockerfile
+      context: .
+      dockerfile: src/JIR.WebAPI/Dockerfile
     container_name: jir-api
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
       - ASPNETCORE_URLS=http://+:8080
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=jir_db;Username=jir_user;Password=jir_password
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${POSTGRES_DB:-jir_db};Username=${POSTGRES_USER:-jir_user};Password=${POSTGRES_PASSWORD:-jir_password}
     ports:
-      - "5001:8080"
+      - "8080:8080"
     depends_on:
       postgres:
         condition: service_healthy
@@ -43,15 +43,15 @@ services:
   # Blazor Frontend
   blazor:
     build:
-      context: ./src
-      dockerfile: JIR.BlazorApp/Dockerfile
+      context: .
+      dockerfile: src/JIR.BlazorApp/Dockerfile
     container_name: jir-blazor
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:8080
-      - ApiBaseUrl=http://api:8080
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+      - ASPNETCORE_URLS=http://+:3000
+      - ApiBaseUrl=${API_BASE_URL:-http://api:8080}
     ports:
-      - "5002:8080"
+      - "3000:3000"
     depends_on:
       - api
     networks:

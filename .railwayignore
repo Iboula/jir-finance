@@ -1,0 +1,15 @@
+.git
+.github
+.vs
+.vscode
+*.user
+*.suo
+**/bin
+**/obj
+**/Debug
+**/Release
+*.log
+*.db
+*.md
+docs/
+tests/
