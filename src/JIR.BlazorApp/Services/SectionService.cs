@@ -41,4 +41,53 @@ public class SectionService
             throw;
         }
     }
+
+    public async Task<Guid> CreateAsync(CreateSectionDto dto)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync(BaseUrl, dto);
+            response.EnsureSuccessStatusCode();
+            var result = await response.Content.ReadFromJsonAsync<CreateSectionResponse>();
+            return result?.Id ?? Guid.Empty;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erreur lors de la création de la section");
+            throw;
+        }
+    }
+
+    public async Task UpdateAsync(Guid id, UpdateSectionDto dto)
+    {
+        try
+        {
+            var response = await _httpClient.PutAsJsonAsync($"{BaseUrl}/{id}", dto);
+            response.EnsureSuccessStatusCode();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erreur lors de la mise à jour de la section {Id}", id);
+            throw;
+        }
+    }
+
+    public async Task DeleteAsync(Guid id)
+    {
+        try
+        {
+            var response = await _httpClient.DeleteAsync($"{BaseUrl}/{id}");
+            response.EnsureSuccessStatusCode();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erreur lors de la suppression de la section {Id}", id);
+            throw;
+        }
+    }
+}
+
+public class CreateSectionResponse
+{
+    public Guid Id { get; set; }
 }

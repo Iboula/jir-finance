@@ -1,0 +1,347 @@
+@page "/sections"
+@rendermode InteractiveServer
+@using JIR.BlazorApp.Models
+@using JIR.BlazorApp.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject SectionService SectionService
+@inject ToastService ToastService
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Gestion des Sections</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="mb-0">
+                    <i class="bi bi-diagram-3 me-2"></i>
+                    Sections
+                </h2>
+                <button type="button" class="btn btn-primary" @onclick="OpenCreateModal">
+                    <i class="bi bi-plus-circle me-2"></i>
+                    Nouvelle Section
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @if (loading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Chargement...</span>
+            </div>
+            <p class="mt-3 text-muted">Chargement des sections...</p>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+    else
+    {
+        <!-- Statistiques -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-bg-primary">
+                    <div class="card-body">
+                        <h6 class="card-title">Total Sections</h6>
+                        <h3 class="mb-0">@sections.Count</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-bg-success">
+                    <div class="card-body">
+                        <h6 class="card-title">Budget Total</h6>
+                        <h3 class="mb-0">@sections.Sum(s => s.BudgetAnnuel).ToString("N0") FCFA</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-bg-info">
+                    <div class="card-body">
+                        <h6 class="card-title">Avec Responsable</h6>
+                        <h3 class="mb-0">@sections.Count(s => s.ResponsableId.HasValue)</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-bg-warning">
+                    <div class="card-body">
+                        <h6 class="card-title">Budget Moyen</h6>
+                        <h3 class="mb-0">@(sections.Any() ? sections.Average(s => s.BudgetAnnuel).ToString("N0") : "0") FCFA</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Code</th>
+                                <th>Nom</th>
+                                <th>Description</th>
+                                <th>Budget Annuel</th>
+                                <th>Date Création</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (sections.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">
+                                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                        Aucune section trouvée
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var item in sections)
+                                {
+                                    <tr>
+                                        <td>
+                                            <span class="badge bg-primary">@item.Code</span>
+                                        </td>
+                                        <td>
+                                            <strong>@item.Nom</strong>
+                                        </td>
+                                        <td>
+                                            <span class="text-muted">@(item.Description ?? "-")</span>
+                                        </td>
+                                        <td>
+                                            <strong class="text-success">@item.BudgetAnnuel.ToString("N0") FCFA</strong>
+                                        </td>
+                                        <td>@item.CreatedAt.ToString("dd/MM/yyyy")</td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button type="button" class="btn btn-outline-primary" 
+                                                        @onclick="() => OpenEditModal(item.Id)"
+                                                        title="Modifier">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-outline-danger" 
+                                                        @onclick="() => DeleteSection(item.Id)"
+                                                        title="Supprimer">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Modal Créer/Modifier -->
+@if (showModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        @(editingId == null ? "Nouvelle Section" : "Modifier Section")
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="@formModel" OnValidSubmit="SaveSection">
+                        <DataAnnotationsValidator />
+                        
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Code *</label>
+                                <InputText class="form-control" @bind-Value="formModel.Code" placeholder="Ex: SEC01" />
+                                <ValidationMessage For="@(() => formModel.Code)" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Nom *</label>
+                                <InputText class="form-control" @bind-Value="formModel.Nom" placeholder="Ex: Section Informatique" />
+                                <ValidationMessage For="@(() => formModel.Nom)" />
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label">Description</label>
+                                <InputTextArea class="form-control" rows="3" @bind-Value="formModel.Description" 
+                                              placeholder="Description de la section..." />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Budget Annuel (FCFA) *</label>
+                                <InputNumber class="form-control" @bind-Value="formModel.BudgetAnnuel" />
+                                <ValidationMessage For="@(() => formModel.BudgetAnnuel)" />
+                            </div>
+                        </div>
+
+                        <div class="mt-4 d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseModal">
+                                <i class="bi bi-x-circle me-2"></i>
+                                Annuler
+                            </button>
+                            <button type="submit" class="btn btn-primary" disabled="@saving">
+                                @if (saving)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-check-circle me-2"></i>
+                                }
+                                Enregistrer
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<SectionDto> sections = new();
+    private bool loading = false;
+    private bool saving = false;
+    private bool showModal = false;
+    private string? errorMessage = null;
+    private Guid? editingId = null;
+    private CreateSectionDto formModel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSections();
+    }
+
+    private async Task LoadSections()
+    {
+        try
+        {
+            loading = true;
+            errorMessage = null;
+            sections = await SectionService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur lors du chargement des sections: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void OpenCreateModal()
+    {
+        editingId = null;
+        formModel = new CreateSectionDto
+        {
+            BudgetAnnuel = 0
+        };
+        showModal = true;
+    }
+
+    private async Task OpenEditModal(Guid id)
+    {
+        try
+        {
+            var section = await SectionService.GetByIdAsync(id);
+            if (section != null)
+            {
+                editingId = id;
+                formModel = new CreateSectionDto
+                {
+                    Code = section.Code,
+                    Nom = section.Nom,
+                    Description = section.Description,
+                    ResponsableId = section.ResponsableId,
+                    BudgetAnnuel = section.BudgetAnnuel
+                };
+                showModal = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Erreur: {ex.Message}");
+        }
+    }
+
+    private async Task SaveSection()
+    {
+        try
+        {
+            saving = true;
+
+            if (editingId == null)
+            {
+                await SectionService.CreateAsync(formModel);
+                ToastService.ShowSuccess("Section créée avec succès");
+            }
+            else
+            {
+                var updateDto = new UpdateSectionDto
+                {
+                    Id = editingId.Value,
+                    Code = formModel.Code,
+                    Nom = formModel.Nom,
+                    Description = formModel.Description,
+                    ResponsableId = formModel.ResponsableId,
+                    BudgetAnnuel = formModel.BudgetAnnuel
+                };
+                await SectionService.UpdateAsync(editingId.Value, updateDto);
+                ToastService.ShowSuccess("Section modifiée avec succès");
+            }
+
+            CloseModal();
+            await LoadSections();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Erreur: {ex.Message}");
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    private async Task DeleteSection(Guid id)
+    {
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", 
+            "Êtes-vous sûr de vouloir supprimer cette section ?");
+        
+        if (!confirmed) return;
+
+        try
+        {
+            await SectionService.DeleteAsync(id);
+            ToastService.ShowSuccess("Section supprimée avec succès");
+            await LoadSections();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Erreur: {ex.Message}");
+        }
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        editingId = null;
+    }
+}
