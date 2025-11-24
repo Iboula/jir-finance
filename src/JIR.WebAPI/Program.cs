@@ -6,6 +6,24 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Convert Railway DATABASE_URL to Npgsql connection string if present
+var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+if (!string.IsNullOrEmpty(databaseUrl))
+{
+    var databaseUri = new Uri(databaseUrl);
+    var userInfo = databaseUri.UserInfo.Split(':');
+    
+    var connectionString = $"Host={databaseUri.Host};" +
+                          $"Port={databaseUri.Port};" +
+                          $"Database={databaseUri.LocalPath.TrimStart('/')};" +
+                          $"Username={userInfo[0]};" +
+                          $"Password={userInfo[1]};" +
+                          "SSL Mode=Require;" +
+                          "Trust Server Certificate=true";
+    
+    builder.Configuration["ConnectionStrings:DefaultConnection"] = connectionString;
+}
+
 // Configure Kestrel to listen on port 8080
 builder.WebHost.ConfigureKestrel(serverOptions =>
 {

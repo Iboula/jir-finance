@@ -9,7 +9,7 @@ $envVars = @'
 === SERVICE: API (jir-api) ===
 ASPNETCORE_ENVIRONMENT=Production
 ASPNETCORE_URLS=http://0.0.0.0:$PORT
-ConnectionStrings__DefaultConnection=${{Postgres.DATABASE_URL}}
+DATABASE_URL=${{Postgres.DATABASE_URL}}
 
 === SERVICE: Blazor (jir-blazor) ===
 ASPNETCORE_ENVIRONMENT=Production

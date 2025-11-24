@@ -21,8 +21,10 @@ Base de données PostgreSQL déjà configurée.
 ```
 ASPNETCORE_ENVIRONMENT=Production
 ASPNETCORE_URLS=http://0.0.0.0:$PORT
-ConnectionStrings__DefaultConnection=${{Postgres.DATABASE_URL}}
+DATABASE_URL=${{Postgres.DATABASE_URL}}
 ```
+
+**Note**: Le code convertit automatiquement `DATABASE_URL` au format Npgsql.
 
 #### Settings:
 - **Root Directory**: (laissez vide)
