@@ -9,11 +9,11 @@ ENV DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
 ENV DOTNET_NOLOGO=1
 
 # Copier les fichiers de projet et restaurer les dépendances
-COPY ["JIR.BlazorApp/JIR.BlazorApp.csproj", "JIR.BlazorApp/"]
+COPY ["src/JIR.BlazorApp/JIR.BlazorApp.csproj", "JIR.BlazorApp/"]
 RUN dotnet restore "JIR.BlazorApp/JIR.BlazorApp.csproj" --disable-parallel
 
 # Copier tout le code source et compiler
-COPY JIR.BlazorApp/ JIR.BlazorApp/
+COPY src/JIR.BlazorApp/ JIR.BlazorApp/
 WORKDIR "/src/JIR.BlazorApp"
 RUN dotnet build "JIR.BlazorApp.csproj" -c Release -o /app/build
 
