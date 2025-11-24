@@ -101,8 +101,11 @@ public class SeedController : ControllerBase
             var appliedMigrations = await _context.Database.GetAppliedMigrationsAsync();
 
             // Vérifier si les données sont seedées
-            var accountsCount = await _context.Accounts.CountAsync();
-            var transactionsCount = await _context.Transactions.CountAsync();
+            var usersCount = await _context.Users.CountAsync();
+            var sectionsCount = await _context.Sections.CountAsync();
+            var cotisationsCount = await _context.Cotisations.CountAsync();
+            var depensesCount = await _context.Depenses.CountAsync();
+            var recettesCount = await _context.Recettes.CountAsync();
 
             return Ok(new
             {
@@ -111,9 +114,12 @@ public class SeedController : ControllerBase
                 appliedMigrations = appliedMigrations.ToList(),
                 pendingMigrationsCount = pendingMigrations.Count(),
                 appliedMigrationsCount = appliedMigrations.Count(),
-                accountsCount,
-                transactionsCount,
-                isSeeded = accountsCount > 0,
+                usersCount,
+                sectionsCount,
+                cotisationsCount,
+                depensesCount,
+                recettesCount,
+                isSeeded = usersCount > 0 || sectionsCount > 0,
                 timestamp = DateTime.UtcNow
             });
         }

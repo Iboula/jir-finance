@@ -37,8 +37,11 @@ try {
     Write-Host "   Migrations appliquees: $($status.appliedMigrationsCount)" -ForegroundColor Gray
     Write-Host "   Migrations en attente: $($status.pendingMigrationsCount)" -ForegroundColor Gray
     Write-Host "   Base de donnees seedee: $($status.isSeeded)" -ForegroundColor $(if($status.isSeeded){"Green"}else{"Yellow"})
-    Write-Host "   Comptes: $($status.accountsCount)" -ForegroundColor Gray
-    Write-Host "   Transactions: $($status.transactionsCount)" -ForegroundColor Gray
+    Write-Host "   Utilisateurs: $($status.usersCount)" -ForegroundColor Gray
+    Write-Host "   Sections: $($status.sectionsCount)" -ForegroundColor Gray
+    Write-Host "   Cotisations: $($status.cotisationsCount)" -ForegroundColor Gray
+    Write-Host "   Depenses: $($status.depensesCount)" -ForegroundColor Gray
+    Write-Host "   Recettes: $($status.recettesCount)" -ForegroundColor Gray
 }
 catch {
     Write-Host "   Erreur: $($_.Exception.Message)" -ForegroundColor Red
@@ -82,8 +85,11 @@ catch {
 Write-Host "`n4. Verification finale..." -ForegroundColor Yellow
 try {
     $finalStatus = Invoke-RestMethod -Uri "$ApiUrl/api/seed/status" -Method Get
-    Write-Host "   Comptes: $($finalStatus.accountsCount)" -ForegroundColor Green
-    Write-Host "   Transactions: $($finalStatus.transactionsCount)" -ForegroundColor Green
+    Write-Host "   Utilisateurs: $($finalStatus.usersCount)" -ForegroundColor Green
+    Write-Host "   Sections: $($finalStatus.sectionsCount)" -ForegroundColor Green
+    Write-Host "   Cotisations: $($finalStatus.cotisationsCount)" -ForegroundColor Green
+    Write-Host "   Depenses: $($finalStatus.depensesCount)" -ForegroundColor Green
+    Write-Host "   Recettes: $($finalStatus.recettesCount)" -ForegroundColor Green
 }
 catch {
     Write-Host "   Erreur: $($_.Exception.Message)" -ForegroundColor Red
