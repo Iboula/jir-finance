@@ -27,10 +27,12 @@ DATABASE_URL=${{Postgres.DATABASE_URL}}
 **Note**: Le code convertit automatiquement `DATABASE_URL` au format Npgsql.
 
 #### Settings:
-- **Root Directory**: (laissez vide)
-- **Dockerfile Path**: `src/JIR.WebAPI/Dockerfile`
+- **Root Directory**: `src/JIR.WebAPI`
+- **Dockerfile Path**: (laissez vide, railway.toml dans le dossier gère ça)
 - **Start Command**: (laissez vide, le Dockerfile gère ça)
 - **Health Check Path**: `/health`
+
+**Note**: Le fichier `src/JIR.WebAPI/railway.toml` configure le build Docker.
 
 ### 3. Service Blazor (jir-blazor)
 
@@ -48,10 +50,13 @@ ASPNETCORE_URLS=http://0.0.0.0:$PORT
 ApiBaseUrl=${{jir-api.url}}
 ```
 
-#### Settings:
-- **Root Directory**: (laissez vide)
-- **Dockerfile Path**: `src/JIR.BlazorApp/Dockerfile`
+#### Settings (IMPORTANT):
+- **Root Directory**: `src/JIR.BlazorApp`
+- **Dockerfile Path**: (laissez vide, railway.toml dans le dossier gère ça)
 - **Start Command**: (laissez vide)
+- **Watch Paths**: `src/JIR.BlazorApp/**`
+
+**Note**: Le fichier `src/JIR.BlazorApp/railway.toml` configure le build Docker.
 
 ## Ordre de déploiement
 
