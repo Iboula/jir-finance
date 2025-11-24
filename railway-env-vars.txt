@@ -1,0 +1,17 @@
+﻿# Copiez ces variables dans Railway Dashboard
+# Project: https://railway.com/project/990b025d-826c-4ab9-9876-a5a595392926
+
+=== SERVICE: API (jir-api) ===
+ASPNETCORE_ENVIRONMENT=Production
+ASPNETCORE_URLS=http://0.0.0.0:$PORT
+ConnectionStrings__DefaultConnection=${{Postgres.DATABASE_URL}}
+
+=== SERVICE: Blazor (jir-blazor) ===
+ASPNETCORE_ENVIRONMENT=Production
+ASPNETCORE_URLS=http://0.0.0.0:$PORT
+ApiBaseUrl=${{jir-api.url}}
+
+=== SETTINGS ===
+API Port: 8080
+Blazor Port: 3000
+Health Check: /health
