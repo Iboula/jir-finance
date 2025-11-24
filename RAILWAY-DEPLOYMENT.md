@@ -77,7 +77,26 @@ Une fois déployés, Railway vous donnera des URLs publiques:
 - API: `https://jir-api-production-XXXX.up.railway.app`
 - Blazor: `https://jir-blazor-production-XXXX.up.railway.app`
 
-Testez:
+### Initialisation de la base de données:
+
+**IMPORTANT**: La base de données n'est plus initialisée automatiquement au démarrage.
+
+1. **Vérifier le statut de la base de données**:
+   ```bash
+   GET https://jir-api-production-XXXX.up.railway.app/api/seed/status
+   ```
+
+2. **Initialiser la base de données** (migrations + seed):
+   ```bash
+   POST https://jir-api-production-XXXX.up.railway.app/api/seed/initialize
+   ```
+
+3. **Vérifier la santé de l'API**:
+   ```bash
+   GET https://jir-api-production-XXXX.up.railway.app/health
+   ```
+
+### Test de l'application:
 - API: Ajoutez `/swagger` à l'URL
 - Blazor: Ouvrez directement l'URL
 

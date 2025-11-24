@@ -71,30 +71,39 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
-    app.UseSwagger();
-    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "JIR API v1"));
 }
 
-// Auto-migrate database and seed data
+// Always enable Swagger in all environments for Railway
+app.UseSwagger();
+app.UseSwaggerUI(c => 
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "JIR API v1");
+    c.RoutePrefix = "swagger"; // Access at /swagger
+});
+
+// Vérifier la connexion à la base de données au démarrage (sans bloquer)
 using (var scope = app.Services.CreateScope())
 {
-    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     
     try
     {
-        logger.LogInformation("Applying database migrations...");
-        await context.Database.MigrateAsync();
-        logger.LogInformation("Database migrations applied successfully.");
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var canConnect = await context.Database.CanConnectAsync();
         
-        logger.LogInformation("Seeding database...");
-        await DatabaseSeeder.SeedAsync(context);
-        logger.LogInformation("Database seeding completed successfully.");
+        if (canConnect)
+        {
+            logger.LogInformation("Database connection successful");
+            logger.LogInformation("Use POST /api/seed/initialize to apply migrations and seed data");
+        }
+        else
+        {
+            logger.LogWarning("Cannot connect to database. Check your connection string.");
+        }
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "An error occurred while migrating or seeding the database.");
-        throw;
+        logger.LogWarning(ex, "Database connection check failed. Use /api/seed/status to check database status.");
     }
 }
 
