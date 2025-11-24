@@ -24,10 +24,11 @@ if (!string.IsNullOrEmpty(databaseUrl))
     builder.Configuration["ConnectionStrings:DefaultConnection"] = connectionString;
 }
 
-// Configure Kestrel to listen on port 8080
+// Configure Kestrel to listen on Railway's dynamic port or default 8080
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.ConfigureKestrel(serverOptions =>
 {
-    serverOptions.ListenAnyIP(8080);
+    serverOptions.ListenAnyIP(int.Parse(port));
 });
 
 // Add services to the container
