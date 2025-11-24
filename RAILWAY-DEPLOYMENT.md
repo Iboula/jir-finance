@@ -49,8 +49,8 @@ ApiBaseUrl=${{jir-api.url}}
 ```
 
 #### Settings (IMPORTANT):
-- **Root Directory**: (laissez vide)
-- **Dockerfile Path**: `src/JIR.BlazorApp/Dockerfile`
+- **Root Directory**: `src/JIR.BlazorApp`
+- **Dockerfile Path**: `Dockerfile`
 - **Start Command**: (laissez vide)
 - **Watch Paths**: `src/JIR.BlazorApp/**`
 

@@ -1,6 +1,6 @@
 # Stage 1: Build
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
-WORKDIR /src
+WORKDIR /build
 
 # Désactiver les configurations NuGet locales de Visual Studio
 ENV DOTNET_CLI_HOME=/tmp/dotnet
@@ -9,16 +9,16 @@ ENV DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
 ENV DOTNET_NOLOGO=1
 
 # Copier les fichiers de projet et restaurer les dépendances
-COPY ["src/JIR.BlazorApp/JIR.BlazorApp.csproj", "JIR.BlazorApp/"]
-RUN dotnet restore "JIR.BlazorApp/JIR.BlazorApp.csproj" --disable-parallel
+COPY ["JIR.BlazorApp.csproj", "./"]
+RUN dotnet restore "JIR.BlazorApp.csproj" --disable-parallel
 
 # Copier tout le code source et compiler
-COPY src/JIR.BlazorApp/ JIR.BlazorApp/
-WORKDIR "/src/JIR.BlazorApp"
+COPY . .
 RUN dotnet build "JIR.BlazorApp.csproj" -c Release -o /app/build
 
 # Stage 2: Publish
 FROM build AS publish
+WORKDIR /build
 RUN dotnet publish "JIR.BlazorApp.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Stage 3: Runtime
