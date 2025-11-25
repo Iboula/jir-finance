@@ -1,4 +1,6 @@
-# Stage 1: Build
+# Railway-specific Dockerfile for Blazor App
+# This file uses paths relative to src/JIR.BlazorApp/ (Railway's build context)
+
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /build
 
@@ -8,12 +10,12 @@ ENV NUGET_PACKAGES=/root/.nuget/packages
 ENV DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
 ENV DOTNET_NOLOGO=1
 
-# Copier les fichiers de projet et restaurer les dépendances
-COPY ["src/JIR.BlazorApp/JIR.BlazorApp.csproj", "./"]
+# Copier le fichier projet et restaurer les dépendances
+COPY ["JIR.BlazorApp.csproj", "./"]
 RUN dotnet restore "JIR.BlazorApp.csproj" --disable-parallel
 
 # Copier tout le code source et compiler
-COPY src/JIR.BlazorApp/ .
+COPY . .
 RUN dotnet build "JIR.BlazorApp.csproj" -c Release -o /app/build
 
 # Stage 2: Publish

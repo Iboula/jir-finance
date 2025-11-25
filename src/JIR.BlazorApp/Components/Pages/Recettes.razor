@@ -1,0 +1,516 @@
+@page "/recettes"
+@rendermode InteractiveServer
+@using JIR.BlazorApp.Models
+@using JIR.BlazorApp.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject RecetteService RecetteService
+@inject SectionService SectionService
+@inject ToastService ToastService
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Recettes</PageTitle>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3>Gestion des Recettes</h3>
+        <button class="btn btn-primary" @onclick="ShowCreateModal">
+            <i class="bi bi-plus-circle"></i> Nouvelle Recette
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="@(() => errorMessage = string.Empty)"></button>
+        </div>
+    }
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Total Recettes</h6>
+                    <h3>@recettes.Count</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Montant Total</h6>
+                    <h3>@recettes.Sum(r => r.Montant).ToString("C2")</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Subventions</h6>
+                    <h3>@recettes.Where(r => r.Source == SourceRecette.Subvention).Sum(r => r.Montant).ToString("C2")</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Dons</h6>
+                    <h3>@recettes.Where(r => r.Source == SourceRecette.Don).Sum(r => r.Montant).ToString("C2")</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Section</label>
+                    <select class="form-select" @bind="filterSectionId">
+                        <option value="">Toutes les sections</option>
+                        @foreach (var sec in sections)
+                        {
+                            <option value="@sec.Id">@sec.Code - @sec.Nom</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Source</label>
+                    <select class="form-select" @bind="filterSource">
+                        <option value="">Toutes les sources</option>
+                        @foreach (var source in SourceRecette.GetAll())
+                        {
+                            <option value="@source">@source</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Date Début</label>
+                    <input type="date" class="form-control" @bind="filterDateDebut" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Date Fin</label>
+                    <input type="date" class="form-control" @bind="filterDateFin" />
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button class="btn btn-secondary w-100" @onclick="ApplyFilters">
+                        <i class="bi bi-funnel"></i> Filtrer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recettes Table -->
+    <div class="card">
+        <div class="card-body">
+            @if (loading)
+            {
+                <div class="text-center p-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Chargement...</span>
+                    </div>
+                </div>
+            }
+            else if (!recettes.Any())
+            {
+                <div class="alert alert-info">Aucune recette trouvée.</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Section</th>
+                                <th>Source</th>
+                                <th>Catégorie</th>
+                                <th>Description</th>
+                                <th>Montant</th>
+                                <th>Donateur</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var recette in recettes)
+                            {
+                                <tr>
+                                    <td>@recette.DateRecette.ToString("dd/MM/yyyy")</td>
+                                    <td>
+                                        <span class="badge bg-secondary">@recette.SectionCode</span>
+                                        @recette.SectionNom
+                                    </td>
+                                    <td>
+                                        <span class="@SourceRecette.GetBadgeClass(recette.Source)">
+                                            @recette.Source
+                                        </span>
+                                    </td>
+                                    <td>@recette.Categorie</td>
+                                    <td>@recette.Description</td>
+                                    <td class="fw-bold text-success">@recette.Montant.ToString("C2")</td>
+                                    <td>@(recette.NomDonateur ?? "-")</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-info" @onclick="() => ShowDetailsModal(recette)">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-warning" @onclick="() => ShowEditModal(recette)">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteRecette(recette.Id)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Modal -->
+@if (showModal)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(isEditMode ? "Modifier la Recette" : "Nouvelle Recette")</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="currentRecette" OnValidSubmit="SaveRecette">
+                        <DataAnnotationsValidator />
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Section <span class="text-danger">*</span></label>
+                                <InputSelect class="form-select" @bind-Value="currentRecette.SectionId">
+                                    <option value="">Sélectionner une section</option>
+                                    @foreach (var sec in sections)
+                                    {
+                                        <option value="@sec.Id">@sec.Code - @sec.Nom</option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="@(() => currentRecette.SectionId)" />
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Date <span class="text-danger">*</span></label>
+                                <InputDate class="form-control" @bind-Value="currentRecette.DateRecette" />
+                                <ValidationMessage For="@(() => currentRecette.DateRecette)" />
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Source <span class="text-danger">*</span></label>
+                                <InputSelect class="form-select" @bind-Value="currentRecette.Source">
+                                    <option value="">Sélectionner une source</option>
+                                    @foreach (var source in SourceRecette.GetAll())
+                                    {
+                                        <option value="@source">@source</option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="@(() => currentRecette.Source)" />
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Catégorie <span class="text-danger">*</span></label>
+                                <InputText class="form-control" @bind-Value="currentRecette.Categorie" placeholder="Ex: Vente gâteaux" />
+                                <ValidationMessage For="@(() => currentRecette.Categorie)" />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Description <span class="text-danger">*</span></label>
+                            <InputTextArea class="form-control" @bind-Value="currentRecette.Description" rows="2" />
+                            <ValidationMessage For="@(() => currentRecette.Description)" />
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Montant (FCFA) <span class="text-danger">*</span></label>
+                                <InputNumber class="form-control" @bind-Value="currentRecette.Montant" />
+                                <ValidationMessage For="@(() => currentRecette.Montant)" />
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Nom du Donateur</label>
+                                <InputText class="form-control" @bind-Value="currentRecette.NomDonateur" />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Référence</label>
+                            <InputText class="form-control" @bind-Value="currentRecette.Reference" placeholder="N° reçu, référence..." />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Observations</label>
+                            <InputTextArea class="form-control" @bind-Value="currentRecette.Observations" rows="2" />
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseModal">Annuler</button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i> Enregistrer
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Details Modal -->
+@if (showDetailsModal && selectedRecette != null)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Détails de la Recette</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDetailsModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Section:</strong><br/>
+                            <span class="badge bg-secondary">@selectedRecette.SectionCode</span> @selectedRecette.SectionNom
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Date:</strong><br/>
+                            @selectedRecette.DateRecette.ToString("dd/MM/yyyy")
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Source:</strong><br/>
+                            <span class="@SourceRecette.GetBadgeClass(selectedRecette.Source)">@selectedRecette.Source</span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Catégorie:</strong><br/>
+                            @selectedRecette.Categorie
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <strong>Description:</strong><br/>
+                        @selectedRecette.Description
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Montant:</strong><br/>
+                            <span class="fs-4 text-success fw-bold">@selectedRecette.Montant.ToString("C2")</span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Donateur:</strong><br/>
+                            @(selectedRecette.NomDonateur ?? "Non spécifié")
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(selectedRecette.Reference))
+                    {
+                        <div class="mb-3">
+                            <strong>Référence:</strong><br/>
+                            @selectedRecette.Reference
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(selectedRecette.Observations))
+                    {
+                        <div class="mb-3">
+                            <strong>Observations:</strong><br/>
+                            @selectedRecette.Observations
+                        </div>
+                    }
+
+                    <div class="text-muted small">
+                        Créée le @selectedRecette.CreatedAt.ToString("dd/MM/yyyy à HH:mm")
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDetailsModal">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<RecetteDto> recettes = new();
+    private List<SectionDto> sections = new();
+    private bool loading = true;
+    private string errorMessage = string.Empty;
+
+    // Modal state
+    private bool showModal = false;
+    private bool showDetailsModal = false;
+    private bool isEditMode = false;
+    private RecetteDto? selectedRecette = null;
+    private CreateRecetteDto currentRecette = new();
+
+    // Filters
+    private string filterSectionId = string.Empty;
+    private string filterSource = string.Empty;
+    private DateTime? filterDateDebut = null;
+    private DateTime? filterDateFin = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSections();
+        await LoadData();
+    }
+
+    private async Task LoadSections()
+    {
+        try
+        {
+            sections = await SectionService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur lors du chargement des sections: {ex.Message}";
+        }
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            loading = true;
+            
+            Guid? sectionId = string.IsNullOrEmpty(filterSectionId) ? null : Guid.Parse(filterSectionId);
+            string? source = string.IsNullOrEmpty(filterSource) ? null : filterSource;
+            
+            recettes = await RecetteService.GetAllAsync(sectionId, source, filterDateDebut, filterDateFin);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur lors du chargement: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task ApplyFilters()
+    {
+        await LoadData();
+    }
+
+    private void ShowCreateModal()
+    {
+        isEditMode = false;
+        selectedRecette = null;
+        currentRecette = new CreateRecetteDto { DateRecette = DateTime.Now };
+        showModal = true;
+        StateHasChanged();
+    }
+
+    private void ShowEditModal(RecetteDto recette)
+    {
+        isEditMode = true;
+        selectedRecette = recette;
+        currentRecette = new CreateRecetteDto
+        {
+            SectionId = recette.SectionId,
+            DateRecette = recette.DateRecette,
+            Source = recette.Source,
+            Categorie = recette.Categorie,
+            Description = recette.Description,
+            Montant = recette.Montant,
+            NomDonateur = recette.NomDonateur,
+            Reference = recette.Reference,
+            Observations = recette.Observations
+        };
+        showModal = true;
+        StateHasChanged();
+    }
+
+    private void ShowDetailsModal(RecetteDto recette)
+    {
+        selectedRecette = recette;
+        showDetailsModal = true;
+        StateHasChanged();
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        isEditMode = false;
+        selectedRecette = null;
+        StateHasChanged();
+    }
+
+    private void CloseDetailsModal()
+    {
+        showDetailsModal = false;
+        selectedRecette = null;
+        StateHasChanged();
+    }
+
+    private async Task SaveRecette()
+    {
+        try
+        {
+            if (isEditMode && selectedRecette != null)
+            {
+                var updateDto = new UpdateRecetteDto
+                {
+                    Id = selectedRecette.Id,
+                    SectionId = currentRecette.SectionId,
+                    DateRecette = currentRecette.DateRecette,
+                    Source = currentRecette.Source,
+                    Categorie = currentRecette.Categorie,
+                    Description = currentRecette.Description,
+                    Montant = currentRecette.Montant,
+                    NomDonateur = currentRecette.NomDonateur,
+                    Reference = currentRecette.Reference,
+                    Observations = currentRecette.Observations
+                };
+                await RecetteService.UpdateAsync(selectedRecette.Id, updateDto);
+                ToastService.ShowSuccess("Recette modifiée avec succès");
+            }
+            else
+            {
+                await RecetteService.CreateAsync(currentRecette);
+                ToastService.ShowSuccess("Recette créée avec succès");
+            }
+            
+            CloseModal();
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur lors de l'enregistrement: {ex.Message}";
+        }
+    }
+
+    private async Task DeleteRecette(Guid id)
+    {
+        if (await JSRuntime.InvokeAsync<bool>("confirm", "Êtes-vous sûr de vouloir supprimer cette recette ?"))
+        {
+            try
+            {
+                await RecetteService.DeleteAsync(id);
+                ToastService.ShowSuccess("Recette supprimée avec succès");
+                await LoadData();
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Erreur lors de la suppression: {ex.Message}";
+            }
+        }
+    }
+}
