@@ -1,0 +1,729 @@
+@page "/depenses"
+@rendermode InteractiveServer
+@using JIR.BlazorApp.Models
+@using JIR.BlazorApp.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject DepenseService DepenseService
+@inject SectionService SectionService
+@inject ToastService ToastService
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Gestion des Dépenses</PageTitle>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="mb-0">
+            <i class="bi bi-cash-stack"></i> Gestion des Dépenses
+        </h3>
+        <button class="btn btn-primary" @onclick="ShowCreateModal">
+            <i class="bi bi-plus-circle"></i> Nouvelle Dépense
+        </button>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center p-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Chargement...</span>
+            </div>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle"></i> @errorMessage
+            <button type="button" class="btn-close" @onclick="@(() => errorMessage = null)"></button>
+        </div>
+    }
+    else
+    {
+        <!-- Statistiques -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="card bg-info bg-gradient text-white">
+                    <div class="card-body">
+                        <h6 class="card-title">Total Dépenses</h6>
+                        <h3 class="mb-0">@depenses.Count</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning bg-gradient text-white">
+                    <div class="card-body">
+                        <h6 class="card-title">En attente</h6>
+                        <h3 class="mb-0">@depenses.Count(d => d.Statut == StatutDepense.EnAttenteValidation || d.Statut == StatutDepense.Brouillon)</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success bg-gradient text-white">
+                    <div class="card-body">
+                        <h6 class="card-title">Validées</h6>
+                        <h3 class="mb-0">@depenses.Count(d => d.Statut == StatutDepense.Valide)</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-primary bg-gradient text-white">
+                    <div class="card-body">
+                        <h6 class="card-title">Montant Total</h6>
+                        <h3 class="mb-0">@depenses.Sum(d => d.Montant).ToString("N0") FCFA</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtres -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Section</label>
+                        <select class="form-select" @onchange="OnSectionFilterChanged">
+                            <option value="">Toutes les sections</option>
+                            @foreach (var sec in sections)
+                            {
+                                <option value="@sec.Id">@sec.Code - @sec.Nom</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Statut</label>
+                        <select class="form-select" @onchange="OnStatutFilterChanged">
+                            <option value="">Tous les statuts</option>
+                            @foreach (var statut in StatutDepense.GetAll())
+                            {
+                                <option value="@statut">@StatutDepense.GetLabel(statut)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Date début</label>
+                        <input type="date" class="form-control" @bind="filterDateDebut" @bind:after="ApplyFilters" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Date fin</label>
+                        <input type="date" class="form-control" @bind="filterDateFin" @bind:after="ApplyFilters" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table des dépenses -->
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Numéro</th>
+                                <th>Date</th>
+                                <th>Section</th>
+                                <th>Catégorie</th>
+                                <th>Description</th>
+                                <th>Bénéficiaire</th>
+                                <th class="text-end">Montant</th>
+                                <th>Statut</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var depense in depenses)
+                            {
+                                <tr>
+                                    <td>@depense.Numero</td>
+                                    <td>@depense.DateDepense.ToString("dd/MM/yyyy")</td>
+                                    <td>@depense.SectionCode</td>
+                                    <td>@depense.Categorie</td>
+                                    <td>@depense.Description</td>
+                                    <td>@depense.Beneficiaire</td>
+                                    <td class="text-end">@depense.Montant.ToString("N0") FCFA</td>
+                                    <td><span class="@StatutDepense.GetBadgeClass(depense.Statut)">@StatutDepense.GetLabel(depense.Statut)</span></td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            @if (depense.Statut == StatutDepense.Brouillon)
+                                            {
+                                                <button class="btn btn-outline-primary" @onclick="() => ShowEditModal(depense)" title="Modifier">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button class="btn btn-outline-success" @onclick="() => ShowValiderModal(depense)" title="Valider">
+                                                    <i class="bi bi-check-circle"></i>
+                                                </button>
+                                                <button class="btn btn-outline-danger" @onclick="() => ShowRejeterModal(depense)" title="Rejeter">
+                                                    <i class="bi bi-x-circle"></i>
+                                                </button>
+                                                <button class="btn btn-outline-danger" @onclick="() => DeleteDepense(depense.Id)" title="Supprimer">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            }
+                                            else if (depense.Statut == StatutDepense.Valide)
+                                            {
+                                                <button class="btn btn-outline-primary" @onclick="() => ShowPayerModal(depense)" title="Marquer comme payé">
+                                                    <i class="bi bi-cash"></i> Payer
+                                                </button>
+                                            }
+                                            else if (depense.Statut == StatutDepense.EnAttenteValidation)
+                                            {
+                                                <button class="btn btn-outline-success" @onclick="() => ShowValiderModal(depense)" title="Valider">
+                                                    <i class="bi bi-check-circle"></i>
+                                                </button>
+                                                <button class="btn btn-outline-danger" @onclick="() => ShowRejeterModal(depense)" title="Rejeter">
+                                                    <i class="bi bi-x-circle"></i>
+                                                </button>
+                                            }
+                                            <button class="btn btn-outline-info" @onclick="() => ShowDetailsModal(depense)" title="Détails">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Modal Créer/Modifier -->
+@if (showModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <EditForm Model="@currentDepense" OnValidSubmit="SaveDepense">
+                    <DataAnnotationsValidator />
+                    <div class="modal-header">
+                        <h5 class="modal-title">@(isEditMode ? "Modifier la dépense" : "Nouvelle dépense")</h5>
+                        <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Section <span class="text-danger">*</span></label>
+                                <InputSelect class="form-select" @bind-Value="currentDepense.SectionId">
+                                    <option value="@Guid.Empty">Sélectionner...</option>
+                                    @foreach (var sec in sections)
+                                    {
+                                        <option value="@sec.Id">@sec.Code - @sec.Nom</option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="@(() => currentDepense.SectionId)" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Numéro <span class="text-danger">*</span></label>
+                                <InputText class="form-control" @bind-Value="currentDepense.Numero" placeholder="Ex: DEP-2024-001" />
+                                <ValidationMessage For="@(() => currentDepense.Numero)" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Date <span class="text-danger">*</span></label>
+                                <InputDate class="form-control" @bind-Value="currentDepense.DateDepense" />
+                                <ValidationMessage For="@(() => currentDepense.DateDepense)" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Catégorie <span class="text-danger">*</span></label>
+                                <InputText class="form-control" @bind-Value="currentDepense.Categorie" />
+                                <ValidationMessage For="@(() => currentDepense.Categorie)" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Montant (FCFA) <span class="text-danger">*</span></label>
+                                <InputNumber class="form-control" @bind-Value="currentDepense.Montant" />
+                                <ValidationMessage For="@(() => currentDepense.Montant)" />
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Description <span class="text-danger">*</span></label>
+                                <InputTextArea class="form-control" @bind-Value="currentDepense.Description" rows="2" />
+                                <ValidationMessage For="@(() => currentDepense.Description)" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Bénéficiaire <span class="text-danger">*</span></label>
+                                <InputText class="form-control" @bind-Value="currentDepense.Beneficiaire" />
+                                <ValidationMessage For="@(() => currentDepense.Beneficiaire)" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Mode de paiement</label>
+                                <InputText class="form-control" @bind-Value="currentDepense.ModePaiement" />
+                                <ValidationMessage For="@(() => currentDepense.ModePaiement)" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Référence facture</label>
+                                <InputText class="form-control" @bind-Value="currentDepense.ReferenceFacture" />
+                                <ValidationMessage For="@(() => currentDepense.ReferenceFacture)" />
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Observations</label>
+                                <InputTextArea class="form-control" @bind-Value="currentDepense.Observations" rows="2" />
+                                <ValidationMessage For="@(() => currentDepense.Observations)" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseModal">Annuler</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Enregistrer
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal Valider -->
+@if (showValiderModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <EditForm Model="@validerDto" OnValidSubmit="ValiderDepense">
+                    <DataAnnotationsValidator />
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title">Valider la dépense</h5>
+                        <button type="button" class="btn-close btn-close-white" @onclick="CloseValiderModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Êtes-vous sûr de vouloir valider cette dépense ?</p>
+                        <div class="mb-3">
+                            <label class="form-label">Validé par <span class="text-danger">*</span></label>
+                            <InputText class="form-control" @bind-Value="validerDto.ValidePar" />
+                            <ValidationMessage For="@(() => validerDto.ValidePar)" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Observations</label>
+                            <InputTextArea class="form-control" @bind-Value="validerDto.Observations" rows="2" />
+                            <ValidationMessage For="@(() => validerDto.Observations)" />
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseValiderModal">Annuler</button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle"></i> Valider
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal Rejeter -->
+@if (showRejeterModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <EditForm Model="@rejeterDto" OnValidSubmit="RejeterDepense">
+                    <DataAnnotationsValidator />
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">Rejeter la dépense</h5>
+                        <button type="button" class="btn-close btn-close-white" @onclick="CloseRejeterModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Êtes-vous sûr de vouloir rejeter cette dépense ?</p>
+                        <div class="mb-3">
+                            <label class="form-label">Motif du rejet <span class="text-danger">*</span></label>
+                            <InputTextArea class="form-control" @bind-Value="rejeterDto.MotifRejet" rows="3" />
+                            <ValidationMessage For="@(() => rejeterDto.MotifRejet)" />
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseRejeterModal">Annuler</button>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-x-circle"></i> Rejeter
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal Payer -->
+@if (showPayerModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <EditForm Model="@payerDto" OnValidSubmit="PayerDepense">
+                    <DataAnnotationsValidator />
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">Marquer comme payé</h5>
+                        <button type="button" class="btn-close btn-close-white" @onclick="ClosePayerModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Confirmer le paiement de cette dépense :</p>
+                        <div class="mb-3">
+                            <label class="form-label">Mode de paiement <span class="text-danger">*</span></label>
+                            <InputText class="form-control" @bind-Value="payerDto.ModePaiement" />
+                            <ValidationMessage For="@(() => payerDto.ModePaiement)" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Date de paiement <span class="text-danger">*</span></label>
+                            <InputDate class="form-control" @bind-Value="payerDto.DatePaiement" />
+                            <ValidationMessage For="@(() => payerDto.DatePaiement)" />
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="ClosePayerModal">Annuler</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-cash"></i> Confirmer le paiement
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal Détails -->
+@if (showDetailsModal && selectedDepense != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Détails de la dépense</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDetailsModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <strong>Numéro:</strong> @selectedDepense.Numero
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Statut:</strong> <span class="@StatutDepense.GetBadgeClass(selectedDepense.Statut)">@StatutDepense.GetLabel(selectedDepense.Statut)</span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Section:</strong> @selectedDepense.SectionCode - @selectedDepense.SectionNom
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Date:</strong> @selectedDepense.DateDepense.ToString("dd/MM/yyyy")
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Catégorie:</strong> @selectedDepense.Categorie
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Montant:</strong> @selectedDepense.Montant.ToString("N0") FCFA
+                        </div>
+                        <div class="col-12">
+                            <strong>Description:</strong> @selectedDepense.Description
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Bénéficiaire:</strong> @selectedDepense.Beneficiaire
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Mode de paiement:</strong> @(selectedDepense.ModePaiement ?? "-")
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Référence:</strong> @(selectedDepense.ReferenceFacture ?? "-")
+                        </div>
+                        @if (selectedDepense.DateValidation.HasValue)
+                        {
+                            <div class="col-md-6">
+                                <strong>Date validation:</strong> @selectedDepense.DateValidation.Value.ToString("dd/MM/yyyy")
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Validé par:</strong> @selectedDepense.ValidePar
+                            </div>
+                        }
+                        @if (selectedDepense.DatePaiement.HasValue)
+                        {
+                            <div class="col-md-6">
+                                <strong>Date paiement:</strong> @selectedDepense.DatePaiement.Value.ToString("dd/MM/yyyy")
+                            </div>
+                        }
+                        @if (!string.IsNullOrEmpty(selectedDepense.MotifRejet))
+                        {
+                            <div class="col-12">
+                                <div class="alert alert-danger">
+                                    <strong>Motif de rejet:</strong> @selectedDepense.MotifRejet
+                                </div>
+                            </div>
+                        }
+                        @if (!string.IsNullOrEmpty(selectedDepense.Observations))
+                        {
+                            <div class="col-12">
+                                <strong>Observations:</strong> @selectedDepense.Observations
+                            </div>
+                        }
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDetailsModal">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<DepenseDto> depenses = new();
+    private List<SectionDto> sections = new();
+    private bool isLoading = true;
+    private string? errorMessage;
+    
+    // Modals
+    private bool showModal = false;
+    private bool showValiderModal = false;
+    private bool showRejeterModal = false;
+    private bool showPayerModal = false;
+    private bool showDetailsModal = false;
+    private bool isEditMode = false;
+    
+    // Current objects
+    private CreateDepenseDto currentDepense = new();
+    private DepenseDto? selectedDepense;
+    private ValiderDepenseDto validerDto = new();
+    private RejeterDepenseDto rejeterDto = new();
+    private PayerDepenseDto payerDto = new();
+    
+    // Filters
+    private Guid? filterSectionId;
+    private string? filterStatut;
+    private DateTime? filterDateDebut;
+    private DateTime? filterDateFin;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        errorMessage = null;
+        
+        try
+        {
+            sections = await SectionService.GetAllAsync();
+            await ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur lors du chargement des données: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ApplyFilters()
+    {
+        try
+        {
+            depenses = await DepenseService.GetAllAsync(filterSectionId, filterStatut, filterDateDebut, filterDateFin);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur lors du filtrage: {ex.Message}";
+        }
+    }
+
+    private async Task OnSectionFilterChanged(ChangeEventArgs e)
+    {
+        filterSectionId = Guid.TryParse(e.Value?.ToString(), out var guid) && guid != Guid.Empty ? guid : null;
+        await ApplyFilters();
+    }
+
+    private async Task OnStatutFilterChanged(ChangeEventArgs e)
+    {
+        filterStatut = string.IsNullOrEmpty(e.Value?.ToString()) ? null : e.Value.ToString();
+        await ApplyFilters();
+    }
+
+    // CRUD Operations
+    private void ShowCreateModal()
+    {
+        isEditMode = false;
+        currentDepense = new CreateDepenseDto { DateDepense = DateTime.Now };
+        showModal = true;
+        StateHasChanged();
+    }
+
+    private void ShowEditModal(DepenseDto depense)
+    {
+        isEditMode = true;
+        currentDepense = new CreateDepenseDto
+        {
+            SectionId = depense.SectionId,
+            Numero = depense.Numero,
+            DateDepense = depense.DateDepense,
+            Categorie = depense.Categorie,
+            Description = depense.Description,
+            Montant = depense.Montant,
+            Beneficiaire = depense.Beneficiaire,
+            ModePaiement = depense.ModePaiement,
+            ReferenceFacture = depense.ReferenceFacture,
+            Observations = depense.Observations
+        };
+        selectedDepense = depense;
+        showModal = true;
+        StateHasChanged();
+    }
+
+    private async Task SaveDepense()
+    {
+        try
+        {
+            if (isEditMode && selectedDepense != null)
+            {
+                var updateDto = new UpdateDepenseDto
+                {
+                    Id = selectedDepense.Id,
+                    SectionId = currentDepense.SectionId,
+                    Numero = currentDepense.Numero,
+                    DateDepense = currentDepense.DateDepense,
+                    Categorie = currentDepense.Categorie,
+                    Description = currentDepense.Description,
+                    Montant = currentDepense.Montant,
+                    Beneficiaire = currentDepense.Beneficiaire,
+                    ModePaiement = currentDepense.ModePaiement,
+                    ReferenceFacture = currentDepense.ReferenceFacture,
+                    Observations = currentDepense.Observations
+                };
+                await DepenseService.UpdateAsync(selectedDepense.Id, updateDto);
+                ToastService.ShowSuccess("Dépense modifiée avec succès");
+            }
+            else
+            {
+                await DepenseService.CreateAsync(currentDepense);
+                ToastService.ShowSuccess("Dépense créée avec succès");
+            }
+            
+            CloseModal();
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur lors de l'enregistrement: {ex.Message}";
+        }
+    }
+
+    private async Task DeleteDepense(Guid id)
+    {
+        if (await JSRuntime.InvokeAsync<bool>("confirm", "Êtes-vous sûr de vouloir supprimer cette dépense ?"))
+        {
+            try
+            {
+                await DepenseService.DeleteAsync(id);
+                ToastService.ShowSuccess("Dépense supprimée avec succès");
+                await LoadData();
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Erreur lors de la suppression: {ex.Message}";
+            }
+        }
+    }
+
+    // Workflow Operations
+    private void ShowValiderModal(DepenseDto depense)
+    {
+        selectedDepense = depense;
+        validerDto = new ValiderDepenseDto { Id = depense.Id };
+        showValiderModal = true;
+    }
+
+    private async Task ValiderDepense()
+    {
+        try
+        {
+            await DepenseService.ValiderAsync(validerDto.Id, validerDto.ValidePar, validerDto.Observations);
+            ToastService.ShowSuccess("Dépense validée avec succès");
+            CloseValiderModal();
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur lors de la validation: {ex.Message}";
+        }
+    }
+
+    private void ShowRejeterModal(DepenseDto depense)
+    {
+        selectedDepense = depense;
+        rejeterDto = new RejeterDepenseDto { Id = depense.Id };
+        showRejeterModal = true;
+    }
+
+    private async Task RejeterDepense()
+    {
+        try
+        {
+            await DepenseService.RejeterAsync(rejeterDto.Id, rejeterDto.MotifRejet);
+            ToastService.ShowSuccess("Dépense rejetée");
+            CloseRejeterModal();
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur lors du rejet: {ex.Message}";
+        }
+    }
+
+    private void ShowPayerModal(DepenseDto depense)
+    {
+        selectedDepense = depense;
+        payerDto = new PayerDepenseDto 
+        { 
+            Id = depense.Id,
+            ModePaiement = depense.ModePaiement ?? "",
+            DatePaiement = DateTime.Now
+        };
+        showPayerModal = true;
+    }
+
+    private async Task PayerDepense()
+    {
+        try
+        {
+            await DepenseService.PayerAsync(payerDto.Id, payerDto.ModePaiement, payerDto.DatePaiement);
+            ToastService.ShowSuccess("Dépense marquée comme payée");
+            ClosePayerModal();
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur lors du paiement: {ex.Message}";
+        }
+    }
+
+    private void ShowDetailsModal(DepenseDto depense)
+    {
+        selectedDepense = depense;
+        showDetailsModal = true;
+    }
+
+    // Modal Closers
+    private void CloseModal()
+    {
+        showModal = false;
+        StateHasChanged();
+    }
+
+    private void CloseValiderModal()
+    {
+        showValiderModal = false;
+        StateHasChanged();
+    }
+
+    private void CloseRejeterModal()
+    {
+        showRejeterModal = false;
+        StateHasChanged();
+    }
+
+    private void ClosePayerModal()
+    {
+        showPayerModal = false;
+        StateHasChanged();
+    }
+
+    private void CloseDetailsModal()
+    {
+        showDetailsModal = false;
+        StateHasChanged();
+    }
+}
